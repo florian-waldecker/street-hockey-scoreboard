@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zeitnehmer Bedienfeld | Street Hockey</title>
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --panel-bg: #151c2c;
+            --card-bg: #1e273d;
+            --border: #2e3a59;
+            --accent-home: #ef4444;
+            --accent-away: #3b82f6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-cyan: #06b6d4;
+            --text-main: #f1f5f9;
+            --text-dim: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: #27272a;
+        }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
+        .status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1.3fr 1fr;
+            gap: 1.2rem;
+            flex: 1;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .home-theme { border-top: 4px solid var(--accent-home); }
+        .away-theme { border-top: 4px solid var(--accent-away); }
+        .center-theme { border-top: 4px solid var(--accent-yellow); }
+
+        /* SCORE & SHOTS */
+        .big-number-box {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .big-number-label { font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600; }
+        .big-number-val { font-size: 3.5rem; font-weight: 900; line-height: 1.1; margin: 0.3rem 0; font-variant-numeric: tabular-nums; }
+
+        .btn-group { display: flex; gap: 0.5rem; }
+        .btn {
+            background: #27354f;
+            color: #fff;
+            border: 1px solid #3d4f73;
+            border-radius: 6px;
+            padding: 0.7rem 1rem;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            flex: 1;
+            transition: background 0.15s, transform 0.05s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn:hover { background: #334566; }
+        .btn:active { transform: scale(0.97); }
+
+        .btn-primary { background: var(--accent-green); border-color: #059669; color: black; }
+        .btn-primary:hover { background: #34d399; }
+
+        .btn-danger { background: #b91c1c; border-color: #dc2626; }
+        .btn-danger:hover { background: #dc2626; }
+
+        .btn-warning { background: #d97706; border-color: #f59e0b; color: black; }
+        .btn-warning:hover { background: #f59e0b; }
+
+        .btn-lg { padding: 1rem; font-size: 1.3rem; }
+
+        /* CLOCK DISPLAY IN CONTROL */
+        .clock-display {
+            font-size: 4.5rem;
+            font-weight: 900;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            color: #facc15;
+            text-shadow: 0 0 20px rgba(250, 204, 21, 0.3);
+            background: #000;
+            padding: 0.5rem;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        /* PENALTY SECTION */
+        .penalty-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .penalty-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #0f172a;
+            padding: 0.6rem 0.8rem;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-yellow);
+            font-size: 0.95rem;
+        }
+        .penalty-del {
+            background: #475569;
+            border: none;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .penalty-del:hover { background: #ef4444; }
+
+        .input-text {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 0.5rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        .hotkeys-footer {
+            margin-top: 1rem;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.8rem 1rem;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+            justify-content: center;
+        }
+        .key {
+            background: #334155;
+            color: #f8fafc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            border-bottom: 2px solid #1e293b;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div><strong>🏒 STREET HOCKEY TIMEKEEPER DESK</strong></div>
+        <div class="status-badge">
+            <div id="statusDot" class="status-dot"></div>
+            <span id="statusText">Verbinde...</span>
+        </div>
+    </header>
+
+    <div class="dashboard">
+        <!-- HOME TEAM PANEL -->
+        <div class="panel home-theme">
+            <div class="panel-title">
+                <input type="text" id="homeNameInput" class="input-text" style="width: 70%;" value="HEIM">
+                <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="updateTeamNames()">Speichern</button>
+            </div>
+
+            <!-- SCORE -->
+            <div class="big-number-box">
+                <div class="big-number-label">Tore Heim</div>
+                <div class="big-number-val" id="homeScore" style="color: var(--accent-home);">0</div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="sendCmd('SCORE_ADJUST', {team: 'home', delta: 1})">+1 (H)</button>
+                    <button class="btn btn-danger" onclick="sendCmd('SCORE_ADJUST', {team: 'home', delta: -1})">-1</button>
+                </div>
+            </div>
+
+            <!-- SHOTS -->
+            <div class="big-number-box">
+                <div class="big-number-label">Torschüsse (SOG)</div>
+                <div class="big-number-val" id="homeShots" style="font-size: 2.2rem;">0</div>
+                <div class="btn-group">
+                    <button class="btn" onclick="sendCmd('SHOTS_ADJUST', {team: 'home', delta: 1})">+1 Torschuss</button>
+                    <button class="btn" onclick="sendCmd('SHOTS_ADJUST', {team: 'home', delta: -1})">-1</button>
+                </div>
+            </div>
+
+            <!-- PENALTIES -->
+            <div class="big-number-box" style="text-align: left;">
+                <div class="big-number-label" style="margin-bottom: 0.5rem;">Strafzeiten (2 Min)</div>
+                <div id="homePenaltyList" class="penalty-list"></div>
+                <div style="display: flex; gap: 0.4rem; margin-top: 0.6rem;">
+                    <input type="text" id="homePenPlayer" placeholder="Nr." style="width: 60px;" class="input-text">
+                    <button class="btn btn-warning" style="font-size: 0.85rem;" onclick="addPenalty('home')">+ Strafe (P)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER PERIOD & TIMER PANEL -->
+        <div class="panel center-theme">
+            <div class="panel-title">
+                <span>SPIELUHR & DRITTEL</span>
+                <span id="periodBadge" style="background: var(--card-bg); padding: 2px 8px; border-radius: 4px; font-size: 0.9rem;">Drittel 1</span>
+            </div>
+
+            <!-- MAIN CLOCK -->
+            <div class="clock-display" id="clockDisplay">15:00</div>
+
+            <div class="btn-group">
+                <button id="toggleBtn" class="btn btn-primary btn-lg" onclick="sendCmd('TIMER_TOGGLE')">▶ START (Space)</button>
+                <button class="btn btn-warning btn-lg" onclick="sendCmd('TIMER_RESET')">↺ RESET</button>
+            </div>
+
+            <!-- TIME ADJUST -->
+            <div style="display: flex; gap: 0.4rem;">
+                <button class="btn" onclick="sendCmd('TIMER_ADJUST', {seconds: 10})">+10s</button>
+                <button class="btn" onclick="sendCmd('TIMER_ADJUST', {seconds: -10})">-10s</button>
+                <button class="btn" onclick="sendCmd('TIMER_ADJUST', {seconds: 60})">+1 Min</button>
+                <button class="btn" onclick="sendCmd('TIMER_ADJUST', {seconds: -60})">-1 Min</button>
+            </div>
+
+            <!-- PERIOD SELECTOR -->
+            <div style="margin-top: 0.5rem;">
+                <div class="big-number-label" style="margin-bottom: 0.4rem;">Drittel / Abschnitt</div>
+                <div class="btn-group">
+                    <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '1'})">1.</button>
+                    <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '2'})">2.</button>
+                    <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '3'})">3.</button>
+                    <button class="btn" onclick="sendCmd('PERIOD_SET', {period: 'OT'})">OT</button>
+                </div>
+            </div>
+
+            <!-- BUZZER & DURATION PRESETS -->
+            <div style="margin-top: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+                <button class="btn btn-danger btn-lg" style="background: #e11d48; border-color: #f43f5e;" onclick="sendCmd('BUZZER_TRIGGER')">📢 HUPE / SIRENE (B)</button>
+                <div style="display: flex; gap: 0.4rem; align-items: center;">
+                    <span style="font-size: 0.8rem; color: var(--text-dim);">Dauer:</span>
+                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="sendCmd('TIMER_SET_DURATION', {minutes: 10})">10m</button>
+                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="sendCmd('TIMER_SET_DURATION', {minutes: 15})">15m</button>
+                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="sendCmd('TIMER_SET_DURATION', {minutes: 20})">20m</button>
+                    <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.8rem; margin-left: auto;" onclick="if(confirm('Ganzes Spiel auf 0:0 zurücksetzen?')) sendCmd('GAME_RESET')">Spiel Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AWAY TEAM PANEL -->
+        <div class="panel away-theme">
+            <div class="panel-title">
+                <input type="text" id="awayNameInput" class="input-text" style="width: 70%;" value="GAST">
+                <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="updateTeamNames()">Speichern</button>
+            </div>
+
+            <!-- SCORE -->
+            <div class="big-number-box">
+                <div class="big-number-label">Tore Gast</div>
+                <div class="big-number-val" id="awayScore" style="color: var(--accent-away);">0</div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="sendCmd('SCORE_ADJUST', {team: 'away', delta: 1})">+1 (A)</button>
+                    <button class="btn btn-danger" onclick="sendCmd('SCORE_ADJUST', {team: 'away', delta: -1})">-1</button>
+                </div>
+            </div>
+
+            <!-- SHOTS -->
+            <div class="big-number-box">
+                <div class="big-number-label">Torschüsse (SOG)</div>
+                <div class="big-number-val" id="awayShots" style="font-size: 2.2rem;">0</div>
+                <div class="btn-group">
+                    <button class="btn" onclick="sendCmd('SHOTS_ADJUST', {team: 'away', delta: 1})">+1 Torschuss</button>
+                    <button class="btn" onclick="sendCmd('SHOTS_ADJUST', {team: 'away', delta: -1})">-1</button>
+                </div>
+            </div>
+
+            <!-- PENALTIES -->
+            <div class="big-number-box" style="text-align: left;">
+                <div class="big-number-label" style="margin-bottom: 0.5rem;">Strafzeiten (2 Min)</div>
+                <div id="awayPenaltyList" class="penalty-list"></div>
+                <div style="display: flex; gap: 0.4rem; margin-top: 0.6rem;">
+                    <input type="text" id="awayPenPlayer" placeholder="Nr." style="width: 60px;" class="input-text">
+                    <button class="btn btn-warning" style="font-size: 0.85rem;" onclick="addPenalty('away')">+ Strafe</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HOTKEY CHEAT SHEET -->
+    <div class="hotkeys-footer">
+        <div><span class="key">LEERTASTE</span> Start / Pause</div>
+        <div><span class="key">H</span> Tor Heim</div>
+        <div><span class="key">A</span> Tor Gast</div>
+        <div><span class="key">B</span> Hupe / Buzzer</div>
+        <div><span class="key">R</span> Reset Uhr</div>
+    </div>
+
+    <script>
+        let ws;
+        let lastState = null;
+
+        function connectWS() {
+            const loc = window.location;
+            const wsProtocol = loc.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${wsProtocol}//${loc.host}/ws`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                document.getElementById("statusDot").className = "status-dot online";
+                document.getElementById("statusText").innerText = "Verbunden";
+            };
+
+            ws.onclose = () => {
+                document.getElementById("statusDot").className = "status-dot";
+                document.getElementById("statusText").innerText = "Getrennt (Reconnecting...)";
+                setTimeout(connectWS, 1500);
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === "STATE_UPDATE") {
+                    updateUI(msg.state);
+                }
+            };
+        }
+
+        function sendCmd(action, data = {}) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action, ...data }));
+            }
+        }
+
+        function formatTime(totalSeconds) {
+            const mins = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function updateUI(state) {
+            lastState = state;
+
+            // Score & Shots
+            document.getElementById("homeScore").innerText = state.home_score;
+            document.getElementById("awayScore").innerText = state.away_score;
+            document.getElementById("homeShots").innerText = state.home_shots;
+            document.getElementById("awayShots").innerText = state.away_shots;
+
+            // Names (only update if not focused)
+            if (document.activeElement !== document.getElementById("homeNameInput")) {
+                document.getElementById("homeNameInput").value = state.home_name;
+            }
+            if (document.activeElement !== document.getElementById("awayNameInput")) {
+                document.getElementById("awayNameInput").value = state.away_name;
+            }
+
+            // Period & Clock
+            document.getElementById("clockDisplay").innerText = formatTime(state.time_remaining);
+            document.getElementById("periodBadge").innerText = state.period === "OT" ? "OVERTIME" : `DRITTEL ${state.period}`;
+
+            // Play/Pause Button
+            const toggleBtn = document.getElementById("toggleBtn");
+            if (state.timer_running) {
+                toggleBtn.innerText = "⏸ PAUSE (Space)";
+                toggleBtn.className = "btn btn-danger btn-lg";
+            } else {
+                toggleBtn.innerText = "▶ START (Space)";
+                toggleBtn.className = "btn btn-primary btn-lg";
+            }
+
+            // Home Penalties
+            const homeList = document.getElementById("homePenaltyList");
+            homeList.innerHTML = state.home_penalties.length === 0 ? '<div style="color: #64748b; font-size: 0.85rem;">Keine Strafen</div>' : '';
+            state.home_penalties.forEach((pen, idx) => {
+                homeList.innerHTML += `
+                    <div class="penalty-item">
+                        <span>#<strong>${pen.player}</strong>: ${formatTime(pen.remaining_seconds)}</span>
+                        <button class="penalty-del" onclick="sendCmd('PENALTY_REMOVE', {team: 'home', index: ${idx}})">✕</button>
+                    </div>
+                `;
+            });
+
+            // Away Penalties
+            const awayList = document.getElementById("awayPenaltyList");
+            awayList.innerHTML = state.away_penalties.length === 0 ? '<div style="color: #64748b; font-size: 0.85rem;">Keine Strafen</div>' : '';
+            state.away_penalties.forEach((pen, idx) => {
+                awayList.innerHTML += `
+                    <div class="penalty-item">
+                        <span>#<strong>${pen.player}</strong>: ${formatTime(pen.remaining_seconds)}</span>
+                        <button class="penalty-del" onclick="sendCmd('PENALTY_REMOVE', {team: 'away', index: ${idx}})">✕</button>
+                    </div>
+                `;
+            });
+        }
+
+        function updateTeamNames() {
+            const home_name = document.getElementById("homeNameInput").value;
+            const away_name = document.getElementById("awayNameInput").value;
+            sendCmd("SET_TEAM_NAMES", { home_name, away_name });
+        }
+
+        function addPenalty(team) {
+            const inputId = team === 'home' ? 'homePenPlayer' : 'awayPenPlayer';
+            const input = document.getElementById(inputId);
+            const player = input.value.trim() || "99";
+            sendCmd("PENALTY_ADD", { team, player, seconds: 120 });
+            input.value = "";
+        }
+
+        // KEYBOARD SHORTCUTS
+        window.addEventListener("keydown", (e) => {
+            // Ignore hotkeys when typing in text fields
+            if (e.target.tagName === "INPUT") return;
+
+            if (e.code === "Space") {
+                e.preventDefault();
+                sendCmd("TIMER_TOGGLE");
+            } else if (e.key === "h" || e.key === "H") {
+                sendCmd("SCORE_ADJUST", { team: "home", delta: 1 });
+            } else if (e.key === "a" || e.key === "A") {
+                sendCmd("SCORE_ADJUST", { team: "away", delta: 1 });
+            } else if (e.key === "b" || e.key === "B") {
+                sendCmd("BUZZER_TRIGGER");
+            } else if (e.key === "r" || e.key === "R") {
+                sendCmd("TIMER_RESET");
+            }
+        });
+
+        // Initialize connection
+        connectWS();
+    </script>
+</body>
+</html>
