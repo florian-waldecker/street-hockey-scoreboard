@@ -6,8 +6,9 @@ Ein vollständiges, offline-fähiges Scoreboard-System mit FastAPI, WebSockets u
 
 ### 1. Abhängigkeiten installieren
 ```bash
-pip install fastapi uvicorn
+pip install -r requirements.txt
 ```
+*(Oder direkt: `pip install fastapi "uvicorn[standard]" websockets`)*
 
 ### 2. Server starten
 Im Projektordner ausführen:
