@@ -11,10 +11,9 @@
             --card-bg: #1e273d;
             --border: #2e3a59;
             --accent-home: #ef4444;
-            --accent-away: #3b82f6;
+            --accent-away: #00e5ff;
             --accent-green: #10b981;
             --accent-yellow: #f59e0b;
-            --accent-cyan: #06b6d4;
             --text-main: #f1f5f9;
             --text-dim: #94a3b8;
         }
@@ -105,9 +104,9 @@
             border-bottom: 1px solid var(--border);
         }
 
-        .home-theme { border-top: 4px solid var(--accent-home); }
-        .away-theme { border-top: 4px solid var(--accent-away); }
-        .center-theme { border-top: 4px solid var(--accent-yellow); }
+        #homePanel { border-top: 5px solid var(--accent-home); }
+        #awayPanel { border-top: 5px solid var(--accent-away); }
+        .center-theme { border-top: 5px solid var(--accent-yellow); }
 
         /* SCORE & SHOTS */
         .big-number-box {
@@ -149,9 +148,6 @@
         .btn-warning { background: #d97706; border-color: #f59e0b; color: black; }
         .btn-warning:hover { background: #f59e0b; }
 
-        .btn-info { background: #0284c7; border-color: #38bdf8; }
-        .btn-info:hover { background: #0ea5e9; }
-
         .btn-lg { padding: 0.9rem; font-size: 1.2rem; }
 
         /* CLOCK DISPLAY IN CONTROL */
@@ -169,7 +165,7 @@
         }
 
         /* PENALTY SECTION */
-        .penalty-list { display: flex; flex-direction: column; gap: 0.4rem; }
+        .penalty-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 160px; overflow-y: auto; }
         .penalty-item {
             display: flex;
             justify-content: space-between;
@@ -202,8 +198,8 @@
         }
 
         .team-logo-preview {
-            width: 42px;
-            height: 42px;
+            width: 44px;
+            height: 44px;
             object-fit: contain;
             background: rgba(0,0,0,0.4);
             border-radius: 6px;
@@ -211,6 +207,22 @@
             display: none;
         }
         .team-logo-preview.has-logo { display: block; }
+
+        .color-picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+        .color-input {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: none;
+        }
 
         .hotkeys-footer {
             background: var(--panel-bg);
@@ -246,12 +258,16 @@
 
     <!-- DIRECT IN-PAGE TEAM MANAGER & UPLOAD BAR -->
     <div class="team-manager-bar">
-        <h4>📁 Neues Team anlegen & Logo hochladen:</h4>
+        <h4>📁 Team anlegen & Logo hochladen:</h4>
         <form id="teamUploadForm" onsubmit="handleCreateTeam(event)" style="display: flex; align-items: center; gap: 0.8rem; flex: 1; flex-wrap: wrap;">
-            <input type="text" id="newTeamName" class="input-text" placeholder="Teamname (z. B. Black Panthers)" style="width: 240px;" required>
+            <input type="text" id="newTeamName" class="input-text" placeholder="Teamname (z. B. Whales)" style="width: 200px;" required>
+            <div class="color-picker-wrapper">
+                <span>Farbe:</span>
+                <input type="color" id="newTeamColor" value="#ef4444" class="color-input">
+            </div>
             <div style="display: flex; align-items: center; gap: 6px;">
                 <span style="font-size: 0.85rem; color: var(--text-dim);">Logo:</span>
-                <input type="file" id="newTeamLogo" accept="image/*" class="input-text" style="width: 220px; padding: 3px;">
+                <input type="file" id="newTeamLogo" accept="image/*" class="input-text" style="width: 200px; padding: 3px;">
             </div>
             <button type="submit" class="btn btn-primary" style="flex: none; padding: 0.5rem 1.2rem;">💾 Team Speichern</button>
         </form>
@@ -259,14 +275,14 @@
 
     <div class="dashboard">
         <!-- HOME TEAM PANEL -->
-        <div class="panel home-theme">
+        <div class="panel" id="homePanel">
             <div class="panel-title">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <img id="homeLogoPreview" class="team-logo-preview" src="" alt="Logo">
-                    <input type="text" id="homeNameInput" class="input-text" value="HEIM">
-                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem; flex: none;" onclick="updateTeamNames()">OK</button>
+                    <input type="text" id="homeNameInput" class="input-text" value="BREMERHAVEN WHALES">
+                    <input type="color" id="homeColorPicker" class="color-input" title="Kachelfarbe wählen" onchange="updateTeamColors()">
+                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem; flex: none;" onclick="updateTeamDetails()">OK</button>
                 </div>
-                <!-- LOAD SAVED TEAM DROPDOWN -->
                 <div>
                     <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 2px;">Gespeichertes Team laden:</label>
                     <select id="homeTeamSelect" onchange="assignSelectedTeam('home', this.value)">
@@ -354,14 +370,14 @@
         </div>
 
         <!-- AWAY TEAM PANEL -->
-        <div class="panel away-theme">
+        <div class="panel" id="awayPanel">
             <div class="panel-title">
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <img id="awayLogoPreview" class="team-logo-preview" src="" alt="Logo">
-                    <input type="text" id="awayNameInput" class="input-text" value="GAST">
-                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem; flex: none;" onclick="updateTeamNames()">OK</button>
+                    <input type="text" id="awayNameInput" class="input-text" value="WOLFSBURG WOLFRIDERS">
+                    <input type="color" id="awayColorPicker" class="color-input" title="Kachelfarbe wählen" onchange="updateTeamColors()">
+                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem; flex: none;" onclick="updateTeamDetails()">OK</button>
                 </div>
-                <!-- LOAD SAVED TEAM DROPDOWN -->
                 <div>
                     <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 2px;">Gespeichertes Team laden:</label>
                     <select id="awayTeamSelect" onchange="assignSelectedTeam('away', this.value)">
@@ -410,6 +426,9 @@
         <div><span class="key">B</span> Hupe / Buzzer</div>
         <div><span class="key">R</span> Reset Uhr</div>
     </div>
+
+    <!-- Hidden Canvas for Automatic Color Extraction -->
+    <canvas id="colorCanvas" style="display:none;"></canvas>
 
     <script>
         let ws;
@@ -461,7 +480,19 @@
             document.getElementById("homeShots").innerText = state.home_shots;
             document.getElementById("awayShots").innerText = state.away_shots;
 
-            // Names (only update if not focused)
+            // Custom Colors
+            if (state.home_color) {
+                document.getElementById("homePanel").style.borderTopColor = state.home_color;
+                document.getElementById("homeScore").style.color = state.home_color;
+                document.getElementById("homeColorPicker").value = state.home_color;
+            }
+            if (state.away_color) {
+                document.getElementById("awayPanel").style.borderTopColor = state.away_color;
+                document.getElementById("awayScore").style.color = state.away_color;
+                document.getElementById("awayColorPicker").value = state.away_color;
+            }
+
+            // Names
             if (document.activeElement !== document.getElementById("homeNameInput")) {
                 document.getElementById("homeNameInput").value = state.home_name;
             }
@@ -500,35 +531,43 @@
                 toggleBtn.className = "btn btn-primary btn-lg";
             }
 
-            // Home Penalties
+            // Home Penalties (Unlimited)
             const homeList = document.getElementById("homePenaltyList");
             homeList.innerHTML = state.home_penalties.length === 0 ? '<div style="color: #64748b; font-size: 0.85rem;">Keine Strafen</div>' : '';
             state.home_penalties.forEach((pen, idx) => {
+                const isBench = idx >= 2;
                 homeList.innerHTML += `
-                    <div class="penalty-item">
-                        <span>#<strong>${pen.player}</strong>: ${formatTime(pen.remaining_seconds)}</span>
+                    <div class="penalty-item" style="${isBench ? 'opacity: 0.6; border-left-color: #64748b;' : ''}">
+                        <span>#<strong>${pen.player}</strong>: ${formatTime(pen.remaining_seconds)} ${isBench ? '<small>(Wartend)</small>' : ''}</span>
                         <button class="penalty-del" onclick="sendCmd('PENALTY_REMOVE', {team: 'home', index: ${idx}})">✕</button>
                     </div>
                 `;
             });
 
-            // Away Penalties
+            // Away Penalties (Unlimited)
             const awayList = document.getElementById("awayPenaltyList");
             awayList.innerHTML = state.away_penalties.length === 0 ? '<div style="color: #64748b; font-size: 0.85rem;">Keine Strafen</div>' : '';
             state.away_penalties.forEach((pen, idx) => {
+                const isBench = idx >= 2;
                 awayList.innerHTML += `
-                    <div class="penalty-item">
-                        <span>#<strong>${pen.player}</strong>: ${formatTime(pen.remaining_seconds)}</span>
+                    <div class="penalty-item" style="${isBench ? 'opacity: 0.6; border-left-color: #64748b;' : ''}">
+                        <span>#<strong>${pen.player}</strong>: ${formatTime(pen.remaining_seconds)} ${isBench ? '<small>(Wartend)</small>' : ''}</span>
                         <button class="penalty-del" onclick="sendCmd('PENALTY_REMOVE', {team: 'away', index: ${idx}})">✕</button>
                     </div>
                 `;
             });
         }
 
-        function updateTeamNames() {
+        function updateTeamDetails() {
             const home_name = document.getElementById("homeNameInput").value;
             const away_name = document.getElementById("awayNameInput").value;
-            sendCmd("SET_TEAM_NAMES", { home_name, away_name });
+            const home_color = document.getElementById("homeColorPicker").value;
+            const away_color = document.getElementById("awayColorPicker").value;
+            sendCmd("SET_TEAM_DETAILS", { home_name, away_name, home_color, away_color });
+        }
+
+        function updateTeamColors() {
+            updateTeamDetails();
         }
 
         function addPenalty(team) {
@@ -538,6 +577,56 @@
             sendCmd("PENALTY_ADD", { team, player, seconds: 120 });
             input.value = "";
         }
+
+        // ==========================================
+        // AUTO COLOR EXTRACTION HELPER
+        // ==========================================
+        function extractDominantColor(file) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('colorCanvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    let r = 0, g = 0, b = 0, count = 0;
+                    
+                    // Sample every 4th pixel
+                    for (let i = 0; i < data.length; i += 16) {
+                        const alpha = data[i + 3];
+                        // Ignore transparent or nearly black/white background
+                        if (alpha > 128) {
+                            const pr = data[i], pg = data[i+1], pb = data[i+2];
+                            if ((pr + pg + pb > 60) && (pr + pg + pb < 700)) {
+                                r += pr; g += pg; b += pb; count++;
+                            }
+                        }
+                    }
+
+                    if (count > 0) {
+                        r = Math.round(r / count);
+                        g = Math.round(g / count);
+                        b = Math.round(b / count);
+                        const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+                        resolve(hex);
+                    } else {
+                        resolve("#38bdf8"); // fallback
+                    }
+                };
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        // Auto extract when logo selected in file input
+        document.getElementById("newTeamLogo").addEventListener("change", async (e) => {
+            if (e.target.files && e.target.files[0]) {
+                const hex = await extractDominantColor(e.target.files[0]);
+                document.getElementById("newTeamColor").value = hex;
+            }
+        });
 
         // ==========================================
         // TEAM MANAGEMENT
@@ -568,10 +657,12 @@
         async function handleCreateTeam(e) {
             e.preventDefault();
             const nameInput = document.getElementById("newTeamName");
+            const colorInput = document.getElementById("newTeamColor");
             const logoInput = document.getElementById("newTeamLogo");
 
             const formData = new FormData();
             formData.append("name", nameInput.value.trim());
+            formData.append("color", colorInput.value);
             if (logoInput.files[0]) {
                 formData.append("logo", logoInput.files[0]);
             }
@@ -585,11 +676,10 @@
                     nameInput.value = "";
                     logoInput.value = "";
                     await loadTeamsFromAPI();
-                    alert("Team & Logo erfolgreich gespeichert! Du kannst es jetzt in der Dropdown-Liste auswählen.");
+                    alert("Team & Logo erfolgreich gespeichert! Wähle es einfach in der Dropdown-Liste aus.");
                 }
             } catch (err) {
                 console.error("Fehler beim Speichern:", err);
-                alert("Fehler beim Speichern des Teams.");
             }
         }
 

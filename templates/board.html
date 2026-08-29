@@ -8,8 +8,6 @@
         :root {
             --bg-board: #05070c;
             --digit-clock: #ffff00;   /* Neon Yellow */
-            --digit-home: #ff3344;    /* Vivid Neon Red */
-            --digit-away: #00e5ff;    /* Electric Cyan */
             --digit-period: #00ff66;  /* Neon Green */
             --digit-penalty: #ff9900; /* Neon Orange */
             --text-label: #6b7280;
@@ -34,7 +32,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: 2.2vh 3vw;
+            padding: 2vh 2.5vw;
         }
 
         /* TOP SECTION: PERIOD & MAIN CLOCK */
@@ -45,7 +43,7 @@
             background: var(--box-bg);
             border: 2px solid var(--border-color);
             border-radius: 20px;
-            padding: 1vh 4vw;
+            padding: 0.8vh 4vw;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
         }
 
@@ -62,7 +60,7 @@
             text-transform: uppercase;
         }
         .period-val {
-            font-size: 8.5vh;
+            font-size: 8vh;
             font-weight: 900;
             color: var(--digit-period);
             line-height: 1;
@@ -83,7 +81,7 @@
             text-transform: uppercase;
         }
         .clock-val {
-            font-size: 15vh;
+            font-size: 14.5vh;
             font-weight: 900;
             color: var(--digit-clock);
             line-height: 1;
@@ -98,7 +96,7 @@
             grid-template-columns: 1fr 1fr;
             gap: 2.5vw;
             flex: 1;
-            margin: 1.8vh 0;
+            margin: 1.5vh 0;
         }
 
         .team-card {
@@ -109,59 +107,54 @@
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            padding: 2vh 2vw;
+            padding: 2vh 2.5vw;
             box-shadow: 0 15px 50px rgba(0,0,0,0.7);
             position: relative;
+            transition: border-color 0.3s, background 0.3s;
         }
 
-        .home-card { border-top: 8px solid var(--digit-home); }
-        .away-card { border-top: 8px solid var(--digit-away); }
+        /* TEAM NAME - MULTI-LINE SUPPORT */
+        .team-name {
+            font-size: 4.8vh;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            line-height: 1.15;
+            max-height: 11vh;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+            width: 100%;
+        }
 
-        .team-header {
+        /* CENTER CONTENT: BIG LOGO + SCORE */
+        .score-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 1.5vw;
+            gap: 3vw;
             width: 100%;
-            max-height: 11vh;
+            margin: auto 0;
         }
 
-        .team-logo {
-            height: 9vh;
-            width: 9vh;
+        .team-logo-big {
+            height: 22vh;
+            width: 22vh;
             object-fit: contain;
-            filter: drop-shadow(0 0 12px rgba(255,255,255,0.2));
+            filter: drop-shadow(0 0 20px rgba(255,255,255,0.25));
             display: none;
         }
-        .team-logo.has-logo { display: block; }
-
-        .team-name {
-            font-size: 5.5vh;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-align: center;
-        }
+        .team-logo-big.has-logo { display: block; }
 
         .score-val {
             font-size: 24vh;
             font-weight: 900;
             line-height: 0.9;
             font-variant-numeric: tabular-nums;
-            margin: auto 0;
-        }
-
-        .home-card .score-val {
-            color: var(--digit-home);
-            text-shadow: 0 0 45px rgba(255, 51, 68, 0.5);
-        }
-
-        .away-card .score-val {
-            color: var(--digit-away);
-            text-shadow: 0 0 45px rgba(0, 229, 255, 0.5);
+            letter-spacing: -2px;
         }
 
         /* STATS BAR (SHOTS ON GOAL) */
@@ -181,7 +174,7 @@
             letter-spacing: 2px;
         }
         .stats-val {
-            font-size: 4vh;
+            font-size: 3.8vh;
             font-weight: 900;
             color: #ffffff;
             font-variant-numeric: tabular-nums;
@@ -192,7 +185,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 2.5vw;
-            min-height: 10vh;
+            min-height: 9vh;
         }
 
         .penalty-box {
@@ -202,7 +195,8 @@
             display: flex;
             align-items: center;
             justify-content: space-around;
-            padding: 0.8vh 2vw;
+            padding: 0.6vh 1.5vw;
+            overflow-x: auto;
         }
 
         .penalty-title {
@@ -214,31 +208,43 @@
 
         .penalty-slots {
             display: flex;
-            gap: 2vw;
+            gap: 1.5vw;
+            align-items: center;
         }
 
         .penalty-item {
             display: flex;
             align-items: center;
-            gap: 0.8vw;
+            gap: 0.6vw;
             background: rgba(255, 153, 0, 0.1);
             border: 1px solid rgba(255, 153, 0, 0.3);
-            padding: 0.4vh 1.2vw;
+            padding: 0.4vh 1vw;
             border-radius: 10px;
         }
 
+        .penalty-item.bench {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            opacity: 0.7;
+        }
+
         .penalty-player {
-            font-size: 2.8vh;
+            font-size: 2.6vh;
             font-weight: 900;
             color: #ffffff;
         }
 
         .penalty-timer {
-            font-size: 3.5vh;
+            font-size: 3.2vh;
             font-weight: 900;
             color: var(--digit-penalty);
             font-variant-numeric: tabular-nums;
             text-shadow: 0 0 15px rgba(255, 153, 0, 0.5);
+        }
+
+        .penalty-item.bench .penalty-timer {
+            color: #94a3b8;
+            text-shadow: none;
         }
 
         /* BUZZER FLASH OVERLAY */
@@ -285,12 +291,14 @@
     <!-- MAIN: TEAMS, SCORE & SHOTS -->
     <div class="main-section">
         <!-- HOME -->
-        <div class="team-card home-card">
-            <div class="team-header">
-                <img id="homeLogo" class="team-logo" src="" alt="Logo Heim">
-                <div class="team-name" id="homeName">HEIM</div>
+        <div class="team-card" id="homeCard">
+            <div class="team-name" id="homeName">BREMERHAVEN WHALES</div>
+            
+            <div class="score-row">
+                <img id="homeLogo" class="team-logo-big" src="" alt="Logo Heim">
+                <div class="score-val" id="homeScore">0</div>
             </div>
-            <div class="score-val" id="homeScore">0</div>
+
             <div class="team-stats">
                 <span class="stats-label">SCHÜSSE:</span>
                 <span class="stats-val" id="homeShots">0</span>
@@ -298,12 +306,14 @@
         </div>
 
         <!-- AWAY -->
-        <div class="team-card away-card">
-            <div class="team-header">
-                <img id="awayLogo" class="team-logo" src="" alt="Logo Gast">
-                <div class="team-name" id="awayName">GAST</div>
+        <div class="team-card" id="awayCard">
+            <div class="team-name" id="awayName">WOLFSBURG WOLFRIDERS</div>
+            
+            <div class="score-row">
+                <img id="awayLogo" class="team-logo-big" src="" alt="Logo Gast">
+                <div class="score-val" id="awayScore">0</div>
             </div>
-            <div class="score-val" id="awayScore">0</div>
+
             <div class="team-stats">
                 <span class="stats-label">SCHÜSSE:</span>
                 <span class="stats-val" id="awayShots">0</span>
@@ -374,6 +384,19 @@
             return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         }
 
+        function hexToRgba(hex, alpha) {
+            let c;
+            if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+                c = hex.substring(1).split('');
+                if (c.length === 3) {
+                    c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+                }
+                c = '0x' + c.join('');
+                return `rgba(${[(c>>16)&255, (c>>8)&255, c&255].join(',')}, ${alpha})`;
+            }
+            return hex;
+        }
+
         function connectWS() {
             const loc = window.location;
             const wsProtocol = loc.protocol === "https:" ? "wss:" : "ws:";
@@ -402,51 +425,76 @@
             document.getElementById("homeShots").innerText = state.home_shots;
             document.getElementById("awayShots").innerText = state.away_shots;
 
-            // Logos
+            // Custom Team Colors (Border, Score Glow & Background Tint)
+            const homeCard = document.getElementById("homeCard");
+            const homeScore = document.getElementById("homeScore");
+            if (state.home_color) {
+                homeCard.style.borderTop = `8px solid ${state.home_color}`;
+                homeCard.style.background = `linear-gradient(180deg, ${hexToRgba(state.home_color, 0.12)} 0%, #0c101a 100%)`;
+                homeScore.style.color = state.home_color;
+                homeScore.style.textShadow = `0 0 45px ${hexToRgba(state.home_color, 0.5)}`;
+            }
+
+            const awayCard = document.getElementById("awayCard");
+            const awayScore = document.getElementById("awayScore");
+            if (state.away_color) {
+                awayCard.style.borderTop = `8px solid ${state.away_color}`;
+                awayCard.style.background = `linear-gradient(180deg, ${hexToRgba(state.away_color, 0.12)} 0%, #0c101a 100%)`;
+                awayScore.style.color = state.away_color;
+                awayScore.style.textShadow = `0 0 45px ${hexToRgba(state.away_color, 0.5)}`;
+            }
+
+            // Logos (Big next to Score)
             const homeLogo = document.getElementById("homeLogo");
             if (state.home_logo) {
                 homeLogo.src = state.home_logo;
-                homeLogo.className = "team-logo has-logo";
+                homeLogo.className = "team-logo-big has-logo";
             } else {
-                homeLogo.className = "team-logo";
+                homeLogo.className = "team-logo-big";
             }
 
             const awayLogo = document.getElementById("awayLogo");
             if (state.away_logo) {
                 awayLogo.src = state.away_logo;
-                awayLogo.className = "team-logo has-logo";
+                awayLogo.className = "team-logo-big has-logo";
             } else {
-                awayLogo.className = "team-logo";
+                awayLogo.className = "team-logo-big";
             }
 
             // Period & Clock
             document.getElementById("periodVal").innerText = state.period;
             document.getElementById("clockVal").innerText = formatTime(state.time_remaining);
 
-            // Penalties: Home
+            // Penalties: Home (Supports Unlimited)
             const homeContainer = document.getElementById("homePenaltyContainer");
             if (state.home_penalties.length === 0) {
                 homeContainer.innerHTML = '<span style="color: var(--text-label); font-weight: 700; font-size: 2vh;">—</span>';
             } else {
-                homeContainer.innerHTML = state.home_penalties.map(p => `
-                    <div class="penalty-item">
-                        <span class="penalty-player">#${p.player}</span>
-                        <span class="penalty-timer">${formatTime(p.remaining_seconds)}</span>
-                    </div>
-                `).join('');
+                homeContainer.innerHTML = state.home_penalties.map((p, idx) => {
+                    const isBench = idx >= 2;
+                    return `
+                        <div class="penalty-item ${isBench ? 'bench' : ''}">
+                            <span class="penalty-player">#${p.player}</span>
+                            <span class="penalty-timer">${formatTime(p.remaining_seconds)}</span>
+                        </div>
+                    `;
+                }).join('');
             }
 
-            // Penalties: Away
+            // Penalties: Away (Supports Unlimited)
             const awayContainer = document.getElementById("awayPenaltyContainer");
             if (state.away_penalties.length === 0) {
                 awayContainer.innerHTML = '<span style="color: var(--text-label); font-weight: 700; font-size: 2vh;">—</span>';
             } else {
-                awayContainer.innerHTML = state.away_penalties.map(p => `
-                    <div class="penalty-item">
-                        <span class="penalty-player">#${p.player}</span>
-                        <span class="penalty-timer">${formatTime(p.remaining_seconds)}</span>
-                    </div>
-                `).join('');
+                awayContainer.innerHTML = state.away_penalties.map((p, idx) => {
+                    const isBench = idx >= 2;
+                    return `
+                        <div class="penalty-item ${isBench ? 'bench' : ''}">
+                            <span class="penalty-player">#${p.player}</span>
+                            <span class="penalty-timer">${formatTime(p.remaining_seconds)}</span>
+                        </div>
+                    `;
+                }).join('');
             }
 
             // Buzzer Trigger Check
