@@ -28,16 +28,16 @@
             display: flex;
             flex-direction: column;
             padding: 1rem;
+            gap: 1rem;
         }
 
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.5rem 1rem;
+            padding: 0.7rem 1.2rem;
             background: var(--panel-bg);
             border-radius: 8px;
-            margin-bottom: 1rem;
             border: 1px solid var(--border);
         }
 
@@ -52,6 +52,29 @@
         }
         .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
         .status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+
+        /* DIRECT TEAM & LOGO MANAGEMENT BAR */
+        .team-manager-bar {
+            background: #111827;
+            border: 2px solid #38bdf8;
+            border-radius: 10px;
+            padding: 0.9rem 1.2rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+
+        .team-manager-bar h4 {
+            color: #38bdf8;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
 
         .dashboard {
             display: grid;
@@ -77,8 +100,8 @@
             letter-spacing: 1px;
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
-            padding-bottom: 0.5rem;
+            gap: 0.6rem;
+            padding-bottom: 0.6rem;
             border-bottom: 1px solid var(--border);
         }
 
@@ -125,6 +148,9 @@
 
         .btn-warning { background: #d97706; border-color: #f59e0b; color: black; }
         .btn-warning:hover { background: #f59e0b; }
+
+        .btn-info { background: #0284c7; border-color: #38bdf8; }
+        .btn-info:hover { background: #0ea5e9; }
 
         .btn-lg { padding: 0.9rem; font-size: 1.2rem; }
 
@@ -176,56 +202,17 @@
         }
 
         .team-logo-preview {
-            width: 44px;
-            height: 44px;
+            width: 42px;
+            height: 42px;
             object-fit: contain;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.4);
             border-radius: 6px;
             border: 1px solid var(--border);
             display: none;
         }
         .team-logo-preview.has-logo { display: block; }
 
-        /* MODAL */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal.active { display: flex; }
-        .modal-content {
-            background: var(--panel-bg);
-            border: 1px solid var(--border);
-            padding: 1.5rem;
-            border-radius: 12px;
-            max-width: 500px;
-            width: 90%;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-        .saved-team-list {
-            max-height: 200px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .saved-team-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: var(--card-bg);
-            padding: 0.5rem 0.8rem;
-            border-radius: 6px;
-        }
-
         .hotkeys-footer {
-            margin-top: 1rem;
             background: var(--panel-bg);
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -251,14 +238,24 @@
 
     <header>
         <div><strong>🏒 STREET HOCKEY TIMEKEEPER DESK</strong></div>
-        <div style="display: flex; gap: 1rem; align-items: center;">
-            <button class="btn" style="padding: 4px 10px; font-size: 0.85rem;" onclick="openTeamModal()">📁 Team-Verwaltung & Logos</button>
-            <div class="status-badge">
-                <div id="statusDot" class="status-dot"></div>
-                <span id="statusText">Verbinde...</span>
-            </div>
+        <div class="status-badge">
+            <div id="statusDot" class="status-dot"></div>
+            <span id="statusText">Verbinde...</span>
         </div>
     </header>
+
+    <!-- DIRECT IN-PAGE TEAM MANAGER & UPLOAD BAR -->
+    <div class="team-manager-bar">
+        <h4>📁 Neues Team anlegen & Logo hochladen:</h4>
+        <form id="teamUploadForm" onsubmit="handleCreateTeam(event)" style="display: flex; align-items: center; gap: 0.8rem; flex: 1; flex-wrap: wrap;">
+            <input type="text" id="newTeamName" class="input-text" placeholder="Teamname (z. B. Black Panthers)" style="width: 240px;" required>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 0.85rem; color: var(--text-dim);">Logo:</span>
+                <input type="file" id="newTeamLogo" accept="image/*" class="input-text" style="width: 220px; padding: 3px;">
+            </div>
+            <button type="submit" class="btn btn-primary" style="flex: none; padding: 0.5rem 1.2rem;">💾 Team Speichern</button>
+        </form>
+    </div>
 
     <div class="dashboard">
         <!-- HOME TEAM PANEL -->
@@ -267,11 +264,13 @@
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <img id="homeLogoPreview" class="team-logo-preview" src="" alt="Logo">
                     <input type="text" id="homeNameInput" class="input-text" value="HEIM">
-                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="updateTeamNames()">OK</button>
+                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem; flex: none;" onclick="updateTeamNames()">OK</button>
                 </div>
-                <div style="display: flex; gap: 4px;">
+                <!-- LOAD SAVED TEAM DROPDOWN -->
+                <div>
+                    <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 2px;">Gespeichertes Team laden:</label>
                     <select id="homeTeamSelect" onchange="assignSelectedTeam('home', this.value)">
-                        <option value="">-- Gespeichertes Team laden --</option>
+                        <option value="">-- Team auswählen --</option>
                     </select>
                 </div>
             </div>
@@ -360,11 +359,13 @@
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <img id="awayLogoPreview" class="team-logo-preview" src="" alt="Logo">
                     <input type="text" id="awayNameInput" class="input-text" value="GAST">
-                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="updateTeamNames()">OK</button>
+                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem; flex: none;" onclick="updateTeamNames()">OK</button>
                 </div>
-                <div style="display: flex; gap: 4px;">
+                <!-- LOAD SAVED TEAM DROPDOWN -->
+                <div>
+                    <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 2px;">Gespeichertes Team laden:</label>
                     <select id="awayTeamSelect" onchange="assignSelectedTeam('away', this.value)">
-                        <option value="">-- Gespeichertes Team laden --</option>
+                        <option value="">-- Team auswählen --</option>
                     </select>
                 </div>
             </div>
@@ -398,30 +399,6 @@
                     <button class="btn btn-warning" style="font-size: 0.85rem;" onclick="addPenalty('away')">+ Strafe</button>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- TEAM MANAGEMENT MODAL -->
-    <div id="teamModal" class="modal">
-        <div class="modal-content">
-            <h3 style="color: #38bdf8;">📁 Team-Verwaltung & Logo-Upload</h3>
-            
-            <form id="newTeamForm" onsubmit="handleCreateTeam(event)" style="display: flex; flex-direction: column; gap: 0.8rem;">
-                <label style="font-size: 0.85rem; color: var(--text-dim);">Neues Team anlegen:</label>
-                <input type="text" id="newTeamName" class="input-text" placeholder="Teamname (z.B. Red Vipers)" required>
-                <div>
-                    <label style="font-size: 0.85rem; color: var(--text-dim);">Logo (PNG / JPG / SVG):</label>
-                    <input type="file" id="newTeamLogo" accept="image/*" class="input-text" style="padding: 4px;">
-                </div>
-                <button type="submit" class="btn btn-primary">+ Team speichern</button>
-            </form>
-
-            <hr style="border-color: var(--border);">
-
-            <div style="font-size: 0.85rem; color: var(--text-dim);">Gespeicherte Teams:</div>
-            <div id="modalTeamList" class="saved-team-list"></div>
-
-            <button class="btn" onclick="closeTeamModal()">Schließen</button>
         </div>
     </div>
 
@@ -570,7 +547,6 @@
                 const res = await fetch("/api/teams");
                 savedTeams = await res.json();
                 renderTeamSelects();
-                renderModalTeamList();
             } catch (e) {
                 console.error("Fehler beim Laden der Teams:", e);
             }
@@ -580,30 +556,13 @@
             const homeSelect = document.getElementById("homeTeamSelect");
             const awaySelect = document.getElementById("awayTeamSelect");
 
-            let opts = '<option value="">-- Gespeichertes Team laden --</option>';
+            let opts = '<option value="">-- Team auswählen --</option>';
             savedTeams.forEach(t => {
                 opts += `<option value="${t.id}">${t.name}</option>`;
             });
 
             homeSelect.innerHTML = opts;
             awaySelect.innerHTML = opts;
-        }
-
-        function renderModalTeamList() {
-            const list = document.getElementById("modalTeamList");
-            if (savedTeams.length === 0) {
-                list.innerHTML = '<div style="color: var(--text-dim); font-size: 0.85rem;">Noch keine Teams gespeichert.</div>';
-                return;
-            }
-            list.innerHTML = savedTeams.map(t => `
-                <div class="saved-team-item">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        ${t.logo_url ? `<img src="${t.logo_url}" style="width: 28px; height: 28px; object-fit: contain;">` : ''}
-                        <strong>${t.name}</strong>
-                    </div>
-                    <button class="btn btn-danger" style="padding: 2px 8px; font-size: 0.75rem;" onclick="deleteTeam('${t.id}')">Löschen</button>
-                </div>
-            `).join('');
         }
 
         async function handleCreateTeam(e) {
@@ -626,19 +585,11 @@
                     nameInput.value = "";
                     logoInput.value = "";
                     await loadTeamsFromAPI();
+                    alert("Team & Logo erfolgreich gespeichert! Du kannst es jetzt in der Dropdown-Liste auswählen.");
                 }
             } catch (err) {
                 console.error("Fehler beim Speichern:", err);
-            }
-        }
-
-        async function deleteTeam(teamId) {
-            if (!confirm("Team wirklich löschen?")) return;
-            try {
-                await fetch(`/api/teams/${teamId}`, { method: "DELETE" });
-                await loadTeamsFromAPI();
-            } catch (err) {
-                console.error("Fehler beim Löschen:", err);
+                alert("Fehler beim Speichern des Teams.");
             }
         }
 
@@ -646,9 +597,6 @@
             if (!teamId) return;
             sendCmd("ASSIGN_SAVED_TEAM", { slot, team_id: teamId });
         }
-
-        function openTeamModal() { document.getElementById("teamModal").classList.add("active"); }
-        function closeTeamModal() { document.getElementById("teamModal").classList.remove("active"); }
 
         // KEYBOARD SHORTCUTS
         window.addEventListener("keydown", (e) => {
