@@ -18,14 +18,17 @@ app = FastAPI(title="Street Hockey Scoreboard")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 DATA_DIR = os.path.join(BASE_DIR, "data")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 TEAMS_FILE = os.path.join(DATA_DIR, "teams.json")
 
+# Ensure all needed directories exist automatically
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(STATIC_DIR, exist_ok=True)
 
 # Static mounts
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Helper: Team Database Management
 def load_saved_teams() -> list:
@@ -313,7 +316,6 @@ async def delete_team(team_id: str):
     if not team:
         raise HTTPException(status_code=404, detail="Team nicht gefunden")
     
-    # Optionally delete logo file if in uploads
     if team.get("logo_url") and team["logo_url"].startswith("/uploads/"):
         filename = os.path.basename(team["logo_url"])
         path = os.path.join(UPLOAD_DIR, filename)
