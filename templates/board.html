@@ -34,7 +34,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: 2.5vh 3vw;
+            padding: 2.2vh 3vw;
         }
 
         /* TOP SECTION: PERIOD & MAIN CLOCK */
@@ -45,7 +45,7 @@
             background: var(--box-bg);
             border: 2px solid var(--border-color);
             border-radius: 20px;
-            padding: 1.5vh 4vw;
+            padding: 1vh 4vw;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
         }
 
@@ -55,14 +55,14 @@
             align-items: center;
         }
         .period-label {
-            font-size: 2.2vh;
+            font-size: 2vh;
             font-weight: 800;
             color: var(--text-label);
             letter-spacing: 4px;
             text-transform: uppercase;
         }
         .period-val {
-            font-size: 9vh;
+            font-size: 8.5vh;
             font-weight: 900;
             color: var(--digit-period);
             line-height: 1;
@@ -76,14 +76,14 @@
             align-items: center;
         }
         .clock-label {
-            font-size: 2vh;
+            font-size: 1.8vh;
             font-weight: 800;
             color: var(--text-label);
             letter-spacing: 5px;
             text-transform: uppercase;
         }
         .clock-val {
-            font-size: 16vh;
+            font-size: 15vh;
             font-weight: 900;
             color: var(--digit-clock);
             line-height: 1;
@@ -96,9 +96,9 @@
         .main-section {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 3vw;
+            gap: 2.5vw;
             flex: 1;
-            margin: 2vh 0;
+            margin: 1.8vh 0;
         }
 
         .team-card {
@@ -109,7 +109,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            padding: 2.5vh 2vw;
+            padding: 2vh 2vw;
             box-shadow: 0 15px 50px rgba(0,0,0,0.7);
             position: relative;
         }
@@ -117,20 +117,37 @@
         .home-card { border-top: 8px solid var(--digit-home); }
         .away-card { border-top: 8px solid var(--digit-away); }
 
+        .team-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5vw;
+            width: 100%;
+            max-height: 11vh;
+        }
+
+        .team-logo {
+            height: 9vh;
+            width: 9vh;
+            object-fit: contain;
+            filter: drop-shadow(0 0 12px rgba(255,255,255,0.2));
+            display: none;
+        }
+        .team-logo.has-logo { display: block; }
+
         .team-name {
-            font-size: 6vh;
+            font-size: 5.5vh;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 3px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 90%;
             text-align: center;
         }
 
         .score-val {
-            font-size: 26vh;
+            font-size: 24vh;
             font-weight: 900;
             line-height: 0.9;
             font-variant-numeric: tabular-nums;
@@ -153,18 +170,18 @@
             align-items: baseline;
             gap: 1vw;
             background: rgba(255,255,255,0.03);
-            padding: 0.8vh 2vw;
+            padding: 0.6vh 2vw;
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.06);
         }
         .stats-label {
-            font-size: 2.2vh;
+            font-size: 2vh;
             font-weight: 700;
             color: var(--text-label);
             letter-spacing: 2px;
         }
         .stats-val {
-            font-size: 4.5vh;
+            font-size: 4vh;
             font-weight: 900;
             color: #ffffff;
             font-variant-numeric: tabular-nums;
@@ -174,8 +191,8 @@
         .penalty-section {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 3vw;
-            min-height: 11vh;
+            gap: 2.5vw;
+            min-height: 10vh;
         }
 
         .penalty-box {
@@ -185,11 +202,11 @@
             display: flex;
             align-items: center;
             justify-content: space-around;
-            padding: 1vh 2vw;
+            padding: 0.8vh 2vw;
         }
 
         .penalty-title {
-            font-size: 2vh;
+            font-size: 1.8vh;
             font-weight: 800;
             color: var(--digit-penalty);
             letter-spacing: 3px;
@@ -211,13 +228,13 @@
         }
 
         .penalty-player {
-            font-size: 3vh;
+            font-size: 2.8vh;
             font-weight: 900;
             color: #ffffff;
         }
 
         .penalty-timer {
-            font-size: 3.8vh;
+            font-size: 3.5vh;
             font-weight: 900;
             color: var(--digit-penalty);
             font-variant-numeric: tabular-nums;
@@ -269,7 +286,10 @@
     <div class="main-section">
         <!-- HOME -->
         <div class="team-card home-card">
-            <div class="team-name" id="homeName">HEIM</div>
+            <div class="team-header">
+                <img id="homeLogo" class="team-logo" src="" alt="Logo Heim">
+                <div class="team-name" id="homeName">HEIM</div>
+            </div>
             <div class="score-val" id="homeScore">0</div>
             <div class="team-stats">
                 <span class="stats-label">SCHÜSSE:</span>
@@ -279,7 +299,10 @@
 
         <!-- AWAY -->
         <div class="team-card away-card">
-            <div class="team-name" id="awayName">GAST</div>
+            <div class="team-header">
+                <img id="awayLogo" class="team-logo" src="" alt="Logo Gast">
+                <div class="team-name" id="awayName">GAST</div>
+            </div>
             <div class="score-val" id="awayScore">0</div>
             <div class="team-stats">
                 <span class="stats-label">SCHÜSSE:</span>
@@ -312,7 +335,6 @@
         let lastBuzzerCount = 0;
         let audioCtx = null;
 
-        // Offline Web Audio API Synthesizer for Buzzer / Horn
         function playBuzzerSound() {
             try {
                 if (!audioCtx) {
@@ -322,7 +344,6 @@
                 const gain = audioCtx.createGain();
 
                 osc.type = "sawtooth";
-                // Hockey Horn fundamental frequency with rich harmonics
                 osc.frequency.setValueAtTime(140, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 1.2);
 
@@ -335,16 +356,14 @@
                 osc.start();
                 osc.stop(audioCtx.currentTime + 1.5);
             } catch (e) {
-                console.warn("Audio Context error:", e);
+                console.warn("Audio error:", e);
             }
 
-            // Visual Flash
             const overlay = document.getElementById("buzzerOverlay");
             overlay.classList.add("active");
             setTimeout(() => overlay.classList.remove("active"), 600);
         }
 
-        // Enable Web Audio on first user interaction
         window.addEventListener("click", () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }, { once: true });
@@ -382,6 +401,23 @@
             document.getElementById("awayScore").innerText = state.away_score;
             document.getElementById("homeShots").innerText = state.home_shots;
             document.getElementById("awayShots").innerText = state.away_shots;
+
+            // Logos
+            const homeLogo = document.getElementById("homeLogo");
+            if (state.home_logo) {
+                homeLogo.src = state.home_logo;
+                homeLogo.className = "team-logo has-logo";
+            } else {
+                homeLogo.className = "team-logo";
+            }
+
+            const awayLogo = document.getElementById("awayLogo");
+            if (state.away_logo) {
+                awayLogo.src = state.away_logo;
+                awayLogo.className = "team-logo has-logo";
+            } else {
+                awayLogo.className = "team-logo";
+            }
 
             // Period & Clock
             document.getElementById("periodVal").innerText = state.period;

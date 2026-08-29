@@ -67,17 +67,17 @@
             padding: 1.2rem;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.9rem;
         }
 
         .panel-title {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 0.5rem;
             padding-bottom: 0.5rem;
             border-bottom: 1px solid var(--border);
         }
@@ -90,12 +90,12 @@
         .big-number-box {
             background: var(--card-bg);
             border-radius: 8px;
-            padding: 1rem;
+            padding: 0.8rem 1rem;
             text-align: center;
             border: 1px solid var(--border);
         }
-        .big-number-label { font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600; }
-        .big-number-val { font-size: 3.5rem; font-weight: 900; line-height: 1.1; margin: 0.3rem 0; font-variant-numeric: tabular-nums; }
+        .big-number-label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; font-weight: 600; }
+        .big-number-val { font-size: 3.2rem; font-weight: 900; line-height: 1.1; margin: 0.2rem 0; font-variant-numeric: tabular-nums; }
 
         .btn-group { display: flex; gap: 0.5rem; }
         .btn {
@@ -103,8 +103,8 @@
             color: #fff;
             border: 1px solid #3d4f73;
             border-radius: 6px;
-            padding: 0.7rem 1rem;
-            font-size: 1rem;
+            padding: 0.6rem 0.8rem;
+            font-size: 0.95rem;
             font-weight: 700;
             cursor: pointer;
             flex: 1;
@@ -126,33 +126,33 @@
         .btn-warning { background: #d97706; border-color: #f59e0b; color: black; }
         .btn-warning:hover { background: #f59e0b; }
 
-        .btn-lg { padding: 1rem; font-size: 1.3rem; }
+        .btn-lg { padding: 0.9rem; font-size: 1.2rem; }
 
         /* CLOCK DISPLAY IN CONTROL */
         .clock-display {
-            font-size: 4.5rem;
+            font-size: 4rem;
             font-weight: 900;
             text-align: center;
             font-variant-numeric: tabular-nums;
             color: #facc15;
             text-shadow: 0 0 20px rgba(250, 204, 21, 0.3);
             background: #000;
-            padding: 0.5rem;
+            padding: 0.4rem;
             border-radius: 8px;
             border: 1px solid #333;
         }
 
         /* PENALTY SECTION */
-        .penalty-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .penalty-list { display: flex; flex-direction: column; gap: 0.4rem; }
         .penalty-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: #0f172a;
-            padding: 0.6rem 0.8rem;
+            padding: 0.5rem 0.7rem;
             border-radius: 6px;
             border-left: 3px solid var(--accent-yellow);
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
         .penalty-del {
             background: #475569;
@@ -164,15 +164,64 @@
         }
         .penalty-del:hover { background: #ef4444; }
 
-        .input-text {
+        .input-text, select {
             background: var(--card-bg);
             border: 1px solid var(--border);
             color: white;
             padding: 0.5rem;
             border-radius: 6px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: bold;
             width: 100%;
+        }
+
+        .team-logo-preview {
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            display: none;
+        }
+        .team-logo-preview.has-logo { display: block; }
+
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .saved-team-list {
+            max-height: 200px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .saved-team-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--card-bg);
+            padding: 0.5rem 0.8rem;
+            border-radius: 6px;
         }
 
         .hotkeys-footer {
@@ -180,7 +229,7 @@
             background: var(--panel-bg);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 0.8rem 1rem;
+            padding: 0.7rem 1rem;
             font-size: 0.85rem;
             color: var(--text-dim);
             display: flex;
@@ -202,9 +251,12 @@
 
     <header>
         <div><strong>🏒 STREET HOCKEY TIMEKEEPER DESK</strong></div>
-        <div class="status-badge">
-            <div id="statusDot" class="status-dot"></div>
-            <span id="statusText">Verbinde...</span>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <button class="btn" style="padding: 4px 10px; font-size: 0.85rem;" onclick="openTeamModal()">📁 Team-Verwaltung & Logos</button>
+            <div class="status-badge">
+                <div id="statusDot" class="status-dot"></div>
+                <span id="statusText">Verbinde...</span>
+            </div>
         </div>
     </header>
 
@@ -212,8 +264,16 @@
         <!-- HOME TEAM PANEL -->
         <div class="panel home-theme">
             <div class="panel-title">
-                <input type="text" id="homeNameInput" class="input-text" style="width: 70%;" value="HEIM">
-                <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="updateTeamNames()">Speichern</button>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <img id="homeLogoPreview" class="team-logo-preview" src="" alt="Logo">
+                    <input type="text" id="homeNameInput" class="input-text" value="HEIM">
+                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="updateTeamNames()">OK</button>
+                </div>
+                <div style="display: flex; gap: 4px;">
+                    <select id="homeTeamSelect" onchange="assignSelectedTeam('home', this.value)">
+                        <option value="">-- Gespeichertes Team laden --</option>
+                    </select>
+                </div>
             </div>
 
             <!-- SCORE -->
@@ -231,7 +291,7 @@
                 <div class="big-number-label">Torschüsse (SOG)</div>
                 <div class="big-number-val" id="homeShots" style="font-size: 2.2rem;">0</div>
                 <div class="btn-group">
-                    <button class="btn" onclick="sendCmd('SHOTS_ADJUST', {team: 'home', delta: 1})">+1 Torschuss</button>
+                    <button class="btn" onclick="sendCmd('SHOTS_ADJUST', {team: 'home', delta: 1})">+1 Schuss</button>
                     <button class="btn" onclick="sendCmd('SHOTS_ADJUST', {team: 'home', delta: -1})">-1</button>
                 </div>
             </div>
@@ -242,14 +302,14 @@
                 <div id="homePenaltyList" class="penalty-list"></div>
                 <div style="display: flex; gap: 0.4rem; margin-top: 0.6rem;">
                     <input type="text" id="homePenPlayer" placeholder="Nr." style="width: 60px;" class="input-text">
-                    <button class="btn btn-warning" style="font-size: 0.85rem;" onclick="addPenalty('home')">+ Strafe (P)</button>
+                    <button class="btn btn-warning" style="font-size: 0.85rem;" onclick="addPenalty('home')">+ Strafe</button>
                 </div>
             </div>
         </div>
 
         <!-- CENTER PERIOD & TIMER PANEL -->
         <div class="panel center-theme">
-            <div class="panel-title">
+            <div class="panel-title" style="flex-direction: row; justify-content: space-between; align-items: center;">
                 <span>SPIELUHR & DRITTEL</span>
                 <span id="periodBadge" style="background: var(--card-bg); padding: 2px 8px; border-radius: 4px; font-size: 0.9rem;">Drittel 1</span>
             </div>
@@ -271,8 +331,8 @@
             </div>
 
             <!-- PERIOD SELECTOR -->
-            <div style="margin-top: 0.5rem;">
-                <div class="big-number-label" style="margin-bottom: 0.4rem;">Drittel / Abschnitt</div>
+            <div style="margin-top: 0.3rem;">
+                <div class="big-number-label" style="margin-bottom: 0.3rem;">Drittel / Abschnitt</div>
                 <div class="btn-group">
                     <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '1'})">1.</button>
                     <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '2'})">2.</button>
@@ -297,8 +357,16 @@
         <!-- AWAY TEAM PANEL -->
         <div class="panel away-theme">
             <div class="panel-title">
-                <input type="text" id="awayNameInput" class="input-text" style="width: 70%;" value="GAST">
-                <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="updateTeamNames()">Speichern</button>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <img id="awayLogoPreview" class="team-logo-preview" src="" alt="Logo">
+                    <input type="text" id="awayNameInput" class="input-text" value="GAST">
+                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="updateTeamNames()">OK</button>
+                </div>
+                <div style="display: flex; gap: 4px;">
+                    <select id="awayTeamSelect" onchange="assignSelectedTeam('away', this.value)">
+                        <option value="">-- Gespeichertes Team laden --</option>
+                    </select>
+                </div>
             </div>
 
             <!-- SCORE -->
@@ -316,7 +384,7 @@
                 <div class="big-number-label">Torschüsse (SOG)</div>
                 <div class="big-number-val" id="awayShots" style="font-size: 2.2rem;">0</div>
                 <div class="btn-group">
-                    <button class="btn" onclick="sendCmd('SHOTS_ADJUST', {team: 'away', delta: 1})">+1 Torschuss</button>
+                    <button class="btn" onclick="sendCmd('SHOTS_ADJUST', {team: 'away', delta: 1})">+1 Schuss</button>
                     <button class="btn" onclick="sendCmd('SHOTS_ADJUST', {team: 'away', delta: -1})">-1</button>
                 </div>
             </div>
@@ -333,6 +401,30 @@
         </div>
     </div>
 
+    <!-- TEAM MANAGEMENT MODAL -->
+    <div id="teamModal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: #38bdf8;">📁 Team-Verwaltung & Logo-Upload</h3>
+            
+            <form id="newTeamForm" onsubmit="handleCreateTeam(event)" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                <label style="font-size: 0.85rem; color: var(--text-dim);">Neues Team anlegen:</label>
+                <input type="text" id="newTeamName" class="input-text" placeholder="Teamname (z.B. Red Vipers)" required>
+                <div>
+                    <label style="font-size: 0.85rem; color: var(--text-dim);">Logo (PNG / JPG / SVG):</label>
+                    <input type="file" id="newTeamLogo" accept="image/*" class="input-text" style="padding: 4px;">
+                </div>
+                <button type="submit" class="btn btn-primary">+ Team speichern</button>
+            </form>
+
+            <hr style="border-color: var(--border);">
+
+            <div style="font-size: 0.85rem; color: var(--text-dim);">Gespeicherte Teams:</div>
+            <div id="modalTeamList" class="saved-team-list"></div>
+
+            <button class="btn" onclick="closeTeamModal()">Schließen</button>
+        </div>
+    </div>
+
     <!-- HOTKEY CHEAT SHEET -->
     <div class="hotkeys-footer">
         <div><span class="key">LEERTASTE</span> Start / Pause</div>
@@ -344,7 +436,7 @@
 
     <script>
         let ws;
-        let lastState = null;
+        let savedTeams = [];
 
         function connectWS() {
             const loc = window.location;
@@ -356,6 +448,7 @@
             ws.onopen = () => {
                 document.getElementById("statusDot").className = "status-dot online";
                 document.getElementById("statusText").innerText = "Verbunden";
+                loadTeamsFromAPI();
             };
 
             ws.onclose = () => {
@@ -385,8 +478,6 @@
         }
 
         function updateUI(state) {
-            lastState = state;
-
             // Score & Shots
             document.getElementById("homeScore").innerText = state.home_score;
             document.getElementById("awayScore").innerText = state.away_score;
@@ -399,6 +490,23 @@
             }
             if (document.activeElement !== document.getElementById("awayNameInput")) {
                 document.getElementById("awayNameInput").value = state.away_name;
+            }
+
+            // Logos Preview
+            const homeLogo = document.getElementById("homeLogoPreview");
+            if (state.home_logo) {
+                homeLogo.src = state.home_logo;
+                homeLogo.className = "team-logo-preview has-logo";
+            } else {
+                homeLogo.className = "team-logo-preview";
+            }
+
+            const awayLogo = document.getElementById("awayLogoPreview");
+            if (state.away_logo) {
+                awayLogo.src = state.away_logo;
+                awayLogo.className = "team-logo-preview has-logo";
+            } else {
+                awayLogo.className = "team-logo-preview";
             }
 
             // Period & Clock
@@ -454,10 +562,97 @@
             input.value = "";
         }
 
+        // ==========================================
+        // TEAM MANAGEMENT
+        // ==========================================
+        async function loadTeamsFromAPI() {
+            try {
+                const res = await fetch("/api/teams");
+                savedTeams = await res.json();
+                renderTeamSelects();
+                renderModalTeamList();
+            } catch (e) {
+                console.error("Fehler beim Laden der Teams:", e);
+            }
+        }
+
+        function renderTeamSelects() {
+            const homeSelect = document.getElementById("homeTeamSelect");
+            const awaySelect = document.getElementById("awayTeamSelect");
+
+            let opts = '<option value="">-- Gespeichertes Team laden --</option>';
+            savedTeams.forEach(t => {
+                opts += `<option value="${t.id}">${t.name}</option>`;
+            });
+
+            homeSelect.innerHTML = opts;
+            awaySelect.innerHTML = opts;
+        }
+
+        function renderModalTeamList() {
+            const list = document.getElementById("modalTeamList");
+            if (savedTeams.length === 0) {
+                list.innerHTML = '<div style="color: var(--text-dim); font-size: 0.85rem;">Noch keine Teams gespeichert.</div>';
+                return;
+            }
+            list.innerHTML = savedTeams.map(t => `
+                <div class="saved-team-item">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${t.logo_url ? `<img src="${t.logo_url}" style="width: 28px; height: 28px; object-fit: contain;">` : ''}
+                        <strong>${t.name}</strong>
+                    </div>
+                    <button class="btn btn-danger" style="padding: 2px 8px; font-size: 0.75rem;" onclick="deleteTeam('${t.id}')">Löschen</button>
+                </div>
+            `).join('');
+        }
+
+        async function handleCreateTeam(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById("newTeamName");
+            const logoInput = document.getElementById("newTeamLogo");
+
+            const formData = new FormData();
+            formData.append("name", nameInput.value.trim());
+            if (logoInput.files[0]) {
+                formData.append("logo", logoInput.files[0]);
+            }
+
+            try {
+                const res = await fetch("/api/teams", {
+                    method: "POST",
+                    body: formData
+                });
+                if (res.ok) {
+                    nameInput.value = "";
+                    logoInput.value = "";
+                    await loadTeamsFromAPI();
+                }
+            } catch (err) {
+                console.error("Fehler beim Speichern:", err);
+            }
+        }
+
+        async function deleteTeam(teamId) {
+            if (!confirm("Team wirklich löschen?")) return;
+            try {
+                await fetch(`/api/teams/${teamId}`, { method: "DELETE" });
+                await loadTeamsFromAPI();
+            } catch (err) {
+                console.error("Fehler beim Löschen:", err);
+            }
+        }
+
+        function assignSelectedTeam(slot, teamId) {
+            if (!teamId) return;
+            sendCmd("ASSIGN_SAVED_TEAM", { slot, team_id: teamId });
+        }
+
+        function openTeamModal() { document.getElementById("teamModal").classList.add("active"); }
+        function closeTeamModal() { document.getElementById("teamModal").classList.remove("active"); }
+
         // KEYBOARD SHORTCUTS
         window.addEventListener("keydown", (e) => {
-            // Ignore hotkeys when typing in text fields
-            if (e.target.tagName === "INPUT") return;
+            if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
 
             if (e.code === "Space") {
                 e.preventDefault();
@@ -473,7 +668,6 @@
             }
         });
 
-        // Initialize connection
         connectWS();
     </script>
 </body>

@@ -1,9 +1,12 @@
 import asyncio
 import json
 import logging
+import os
+import shutil
+import uuid
 from typing import Set
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(level=logging.INFO)
@@ -11,31 +14,47 @@ logger = logging.getLogger("Scoreboard")
 
 app = FastAPI(title="Street Hockey Scoreboard")
 
+# Directories
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+DATA_DIR = os.path.join(BASE_DIR, "data")
+TEAMS_FILE = os.path.join(DATA_DIR, "teams.json")
+
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# Static mounts
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
+# Helper: Team Database Management
+def load_saved_teams() -> list:
+    if os.path.exists(TEAMS_FILE):
+        try:
+            with open(TEAMS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def save_teams_db(teams: list):
+    with open(TEAMS_FILE, "w", encoding="utf-8") as f:
+        json.dump(teams, f, ensure_ascii=False, indent=2)
+
 # ==========================================
 # STATE & DATA MODEL
 # ==========================================
-class Penalty:
-    def __init__(self, player: str = "99", duration_seconds: int = 120):
-        self.player = player
-        self.duration_seconds = duration_seconds
-        self.remaining_seconds = duration_seconds
-        self.is_active = False
-
-    def to_dict(self):
-        return {
-            "player": self.player,
-            "remaining_seconds": self.remaining_seconds,
-            "is_active": self.is_active
-        }
-
 class ScoreboardState:
     def __init__(self):
         # Teams
         self.home_name = "HEIM"
-        self.away_name = "GAST"
+        self.home_logo = ""  # URL or path like "/uploads/xxx.png"
         self.home_score = 0
-        self.away_score = 0
         self.home_shots = 0
+
+        self.away_name = "GAST"
+        self.away_logo = ""
+        self.away_score = 0
         self.away_shots = 0
         
         # Period & Timer
@@ -54,10 +73,12 @@ class ScoreboardState:
     def to_dict(self):
         return {
             "home_name": self.home_name,
-            "away_name": self.away_name,
+            "home_logo": self.home_logo,
             "home_score": self.home_score,
-            "away_score": self.away_score,
             "home_shots": self.home_shots,
+            "away_name": self.away_name,
+            "away_logo": self.away_logo,
+            "away_score": self.away_score,
             "away_shots": self.away_shots,
             "period": self.period,
             "period_duration": self.period_duration,
@@ -191,19 +212,32 @@ async def handle_command(cmd: dict):
     # Period
     elif action == "PERIOD_SET":
         state.period = str(cmd.get("period", "1"))
-    elif action == "PERIOD_NEXT":
-        period_sequence = ["1", "2", "3", "OT"]
-        if state.period in period_sequence:
-            idx = period_sequence.index(state.period)
-            if idx < len(period_sequence) - 1:
-                state.period = period_sequence[idx + 1]
-                state.time_remaining = state.period_duration
-                state.timer_running = False
 
-    # Team Names
+    # Team Names & Logos
     elif action == "SET_TEAM_NAMES":
-        state.home_name = cmd.get("home_name", state.home_name)[:12]
-        state.away_name = cmd.get("away_name", state.away_name)[:12]
+        state.home_name = cmd.get("home_name", state.home_name)[:16]
+        state.away_name = cmd.get("away_name", state.away_name)[:16]
+
+    elif action == "SET_TEAM_LOGO":
+        team = cmd.get("team")
+        logo_url = cmd.get("logo_url", "")
+        if team == "home":
+            state.home_logo = logo_url
+        elif team == "away":
+            state.away_logo = logo_url
+
+    elif action == "ASSIGN_SAVED_TEAM":
+        team_slot = cmd.get("slot") # "home" or "away"
+        team_id = cmd.get("team_id")
+        teams = load_saved_teams()
+        selected = next((t for t in teams if t["id"] == team_id), None)
+        if selected:
+            if team_slot == "home":
+                state.home_name = selected["name"]
+                state.home_logo = selected.get("logo_url", "")
+            elif team_slot == "away":
+                state.away_name = selected["name"]
+                state.away_logo = selected.get("logo_url", "")
 
     # Penalties
     elif action == "PENALTY_ADD":
@@ -243,12 +277,62 @@ async def handle_command(cmd: dict):
     await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
 
 # ==========================================
+# REST API: TEAM MANAGEMENT & UPLOADS
+# ==========================================
+@app.get("/api/teams")
+async def get_teams():
+    return load_saved_teams()
+
+@app.post("/api/teams")
+async def save_team(name: str = Form(...), logo: UploadFile = File(None), existing_logo: str = Form(None)):
+    teams = load_saved_teams()
+    team_id = str(uuid.uuid4())[:8]
+    logo_url = existing_logo or ""
+
+    if logo and logo.filename:
+        ext = os.path.splitext(logo.filename)[1]
+        filename = f"{team_id}{ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(logo.file, buffer)
+        logo_url = f"/uploads/{filename}"
+
+    team_entry = {
+        "id": team_id,
+        "name": name.strip(),
+        "logo_url": logo_url
+    }
+    teams.append(team_entry)
+    save_teams_db(teams)
+    return JSONResponse(team_entry)
+
+@app.delete("/api/teams/{team_id}")
+async def delete_team(team_id: str):
+    teams = load_saved_teams()
+    team = next((t for t in teams if t["id"] == team_id), None)
+    if not team:
+        raise HTTPException(status_code=404, detail="Team nicht gefunden")
+    
+    # Optionally delete logo file if in uploads
+    if team.get("logo_url") and team["logo_url"].startswith("/uploads/"):
+        filename = os.path.basename(team["logo_url"])
+        path = os.path.join(UPLOAD_DIR, filename)
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except Exception:
+                pass
+
+    teams = [t for t in teams if t["id"] != team_id]
+    save_teams_db(teams)
+    return {"status": "ok"}
+
+# ==========================================
 # ROUTES
 # ==========================================
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
-    # Send initial state
     await websocket.send_text(json.dumps({"type": "STATE_UPDATE", "state": state.to_dict()}))
     try:
         while True:
@@ -263,12 +347,12 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.get("/control", response_class=HTMLResponse)
 async def get_control_page():
-    with open("templates/control.html", "r", encoding="utf-8") as f:
+    with open(os.path.join(BASE_DIR, "templates/control.html"), "r", encoding="utf-8") as f:
         return f.read()
 
 @app.get("/board", response_class=HTMLResponse)
 async def get_board_page():
-    with open("templates/board.html", "r", encoding="utf-8") as f:
+    with open(os.path.join(BASE_DIR, "templates/board.html"), "r", encoding="utf-8") as f:
         return f.read()
 
 @app.get("/", response_class=HTMLResponse)
@@ -304,4 +388,3 @@ async def get_index_page():
     </body>
     </html>
     """
-
