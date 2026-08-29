@@ -51,13 +51,15 @@ class ScoreboardState:
         # Teams
         self.home_name = "BREMERHAVEN WHALES"
         self.home_logo = ""  # URL or path like "/uploads/xxx.png"
-        self.home_color = "#ef4444" # Custom team accent color
+        self.home_color = "#ef4444" # Accent color for card background/border
+        self.home_text_color = "#ffffff" # Separate text color for high contrast
         self.home_score = 0
         self.home_shots = 0
 
         self.away_name = "WOLFSBURG WOLFRIDERS"
         self.away_logo = ""
         self.away_color = "#00e5ff"
+        self.away_text_color = "#ffffff"
         self.away_score = 0
         self.away_shots = 0
         
@@ -67,7 +69,7 @@ class ScoreboardState:
         self.time_remaining = self.period_duration
         self.timer_running = False
 
-        # Penalties: list of active penalty slots for Home and Away (can hold 4+)
+        # Penalties: list of active penalty slots for Home and Away (can hold unlimited)
         self.home_penalties = []
         self.away_penalties = []
         
@@ -79,11 +81,13 @@ class ScoreboardState:
             "home_name": self.home_name,
             "home_logo": self.home_logo,
             "home_color": self.home_color,
+            "home_text_color": self.home_text_color,
             "home_score": self.home_score,
             "home_shots": self.home_shots,
             "away_name": self.away_name,
             "away_logo": self.away_logo,
             "away_color": self.away_color,
+            "away_text_color": self.away_text_color,
             "away_score": self.away_score,
             "away_shots": self.away_shots,
             "period": self.period,
@@ -138,11 +142,11 @@ async def timer_loop():
             if state.time_remaining > 0:
                 state.time_remaining -= 1
                 
-                # Update Home Penalties (count down active penalties, up to 2 serving simultaneously)
+                # Update Home Penalties (first 2 run concurrently)
                 expired_home = []
                 active_count = 0
                 for p in state.home_penalties:
-                    if active_count < 2:  # First two run concurrently (hockey rule)
+                    if active_count < 2:
                         active_count += 1
                         if p["remaining_seconds"] > 0:
                             p["remaining_seconds"] -= 1
@@ -227,12 +231,14 @@ async def handle_command(cmd: dict):
     elif action == "PERIOD_SET":
         state.period = str(cmd.get("period", "1"))
 
-    # Team Names & Colors
+    # Team Names, Card Colors & Text Colors
     elif action == "SET_TEAM_DETAILS":
         if "home_name" in cmd: state.home_name = cmd["home_name"][:40]
         if "away_name" in cmd: state.away_name = cmd["away_name"][:40]
         if "home_color" in cmd: state.home_color = cmd["home_color"]
         if "away_color" in cmd: state.away_color = cmd["away_color"]
+        if "home_text_color" in cmd: state.home_text_color = cmd["home_text_color"]
+        if "away_text_color" in cmd: state.away_text_color = cmd["away_text_color"]
 
     elif action == "ASSIGN_SAVED_TEAM":
         team_slot = cmd.get("slot") # "home" or "away"
@@ -245,13 +251,17 @@ async def handle_command(cmd: dict):
                 state.home_logo = selected.get("logo_url", "")
                 if "color" in selected and selected["color"]:
                     state.home_color = selected["color"]
+                if "text_color" in selected and selected["text_color"]:
+                    state.home_text_color = selected["text_color"]
             elif team_slot == "away":
                 state.away_name = selected["name"]
                 state.away_logo = selected.get("logo_url", "")
                 if "color" in selected and selected["color"]:
                     state.away_color = selected["color"]
+                if "text_color" in selected and selected["text_color"]:
+                    state.away_text_color = selected["text_color"]
 
-    # Penalties (Unlimited queue support)
+    # Penalties
     elif action == "PENALTY_ADD":
         team = cmd.get("team")
         player = str(cmd.get("player", "00"))
@@ -296,30 +306,51 @@ async def get_teams():
     return load_saved_teams()
 
 @app.post("/api/teams")
-async def save_team(
+async def save_or_update_team(
+    team_id: str = Form(None),
     name: str = Form(...),
-    color: str = Form("#3b82f6"),
-    logo: UploadFile = File(None)
+    color: str = Form("#ef4444"),
+    text_color: str = Form("#ffffff"),
+    logo: UploadFile = File(None),
+    keep_logo: str = Form(None)
 ):
     teams = load_saved_teams()
-    team_id = str(uuid.uuid4())[:8]
-    logo_url = ""
+    logo_url = keep_logo or ""
+
+    if team_id:
+        # Edit existing team
+        existing_idx = next((i for i, t in enumerate(teams) if t["id"] == team_id), None)
+        if existing_idx is None:
+            raise HTTPException(status_code=404, detail="Team nicht gefunden")
+        
+        target_id = team_id
+        if not logo_url and teams[existing_idx].get("logo_url"):
+            logo_url = teams[existing_idx]["logo_url"]
+    else:
+        # Create new team
+        target_id = str(uuid.uuid4())[:8]
 
     if logo and logo.filename:
         ext = os.path.splitext(logo.filename)[1]
-        filename = f"{team_id}{ext}"
+        filename = f"{target_id}{ext}"
         filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(logo.file, buffer)
         logo_url = f"/uploads/{filename}"
 
     team_entry = {
-        "id": team_id,
+        "id": target_id,
         "name": name.strip(),
         "color": color,
+        "text_color": text_color,
         "logo_url": logo_url
     }
-    teams.append(team_entry)
+
+    if team_id:
+        teams[existing_idx] = team_entry
+    else:
+        teams.append(team_entry)
+
     save_teams_db(teams)
     return JSONResponse(team_entry)
 

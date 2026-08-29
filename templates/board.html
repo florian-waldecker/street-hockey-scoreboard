@@ -110,10 +110,10 @@
             padding: 2vh 2.5vw;
             box-shadow: 0 15px 50px rgba(0,0,0,0.7);
             position: relative;
-            transition: border-color 0.3s, background 0.3s;
+            transition: all 0.3s;
         }
 
-        /* TEAM NAME - MULTI-LINE SUPPORT */
+        /* TEAM NAME - MULTI-LINE SUPPORT WITH CUSTOM TEXT COLOR */
         .team-name {
             font-size: 4.8vh;
             font-weight: 900;
@@ -128,6 +128,7 @@
             overflow: hidden;
             word-break: break-word;
             width: 100%;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
         }
 
         /* CENTER CONTENT: BIG LOGO + SCORE */
@@ -418,8 +419,16 @@
 
         function updateBoard(state) {
             // Teams & Score
-            document.getElementById("homeName").innerText = state.home_name;
-            document.getElementById("awayName").innerText = state.away_name;
+            const homeNameEl = document.getElementById("homeName");
+            const awayNameEl = document.getElementById("awayName");
+
+            homeNameEl.innerText = state.home_name;
+            awayNameEl.innerText = state.away_name;
+
+            // Separate Text Color Support
+            if (state.home_text_color) homeNameEl.style.color = state.home_text_color;
+            if (state.away_text_color) awayNameEl.style.color = state.away_text_color;
+
             document.getElementById("homeScore").innerText = state.home_score;
             document.getElementById("awayScore").innerText = state.away_score;
             document.getElementById("homeShots").innerText = state.home_shots;
@@ -430,7 +439,7 @@
             const homeScore = document.getElementById("homeScore");
             if (state.home_color) {
                 homeCard.style.borderTop = `8px solid ${state.home_color}`;
-                homeCard.style.background = `linear-gradient(180deg, ${hexToRgba(state.home_color, 0.12)} 0%, #0c101a 100%)`;
+                homeCard.style.background = `linear-gradient(180deg, ${hexToRgba(state.home_color, 0.15)} 0%, #0c101a 100%)`;
                 homeScore.style.color = state.home_color;
                 homeScore.style.textShadow = `0 0 45px ${hexToRgba(state.home_color, 0.5)}`;
             }
@@ -439,7 +448,7 @@
             const awayScore = document.getElementById("awayScore");
             if (state.away_color) {
                 awayCard.style.borderTop = `8px solid ${state.away_color}`;
-                awayCard.style.background = `linear-gradient(180deg, ${hexToRgba(state.away_color, 0.12)} 0%, #0c101a 100%)`;
+                awayCard.style.background = `linear-gradient(180deg, ${hexToRgba(state.away_color, 0.15)} 0%, #0c101a 100%)`;
                 awayScore.style.color = state.away_color;
                 awayScore.style.textShadow = `0 0 45px ${hexToRgba(state.away_color, 0.5)}`;
             }
