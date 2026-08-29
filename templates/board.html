@@ -33,6 +33,7 @@
             flex-direction: column;
             justify-content: space-between;
             padding: 2vh 2.5vw;
+            position: relative;
         }
 
         /* TOP SECTION: PERIOD & MAIN CLOCK */
@@ -248,6 +249,75 @@
             text-shadow: none;
         }
 
+        /* ==========================================
+           FULLSCREEN 5-SECOND GOAL OVERLAY
+           ========================================== */
+        #goalOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 2vh;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-in-out;
+            background: #05070c;
+        }
+
+        #goalOverlay.active {
+            opacity: 1;
+            pointer-events: auto;
+            animation: goalPulse 1.2s infinite alternate ease-in-out;
+        }
+
+        @keyframes goalPulse {
+            0% { transform: scale(1); filter: brightness(1); }
+            100% { transform: scale(1.02); filter: brightness(1.25); }
+        }
+
+        .goal-text-huge {
+            font-size: 24vh;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1.5vw;
+            line-height: 1;
+            text-shadow: 0 0 60px rgba(255,255,255,0.8), 0 0 120px rgba(0,0,0,0.9);
+            animation: goalTextBounce 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+        }
+
+        @keyframes goalTextBounce {
+            0% { transform: scale(0.96) translateY(0); }
+            100% { transform: scale(1.06) translateY(-10px); }
+        }
+
+        .goal-logo-huge {
+            max-height: 36vh;
+            max-width: 45vw;
+            object-fit: contain;
+            filter: drop-shadow(0 0 40px rgba(255,255,255,0.6));
+            animation: goalLogoSpin 5s ease-out;
+        }
+
+        @keyframes goalLogoSpin {
+            0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+            20% { transform: scale(1.1) rotate(3deg); opacity: 1; }
+            40% { transform: scale(1) rotate(0deg); }
+        }
+
+        .goal-team-name {
+            font-size: 7vh;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.9);
+        }
+
         /* BUZZER FLASH OVERLAY */
         #buzzerOverlay {
             position: fixed;
@@ -270,6 +340,13 @@
 <body>
 
     <div id="buzzerOverlay"></div>
+
+    <!-- FULLSCREEN GOAL OVERLAY -->
+    <div id="goalOverlay">
+        <div class="goal-text-huge" id="goalTitle">TOR!</div>
+        <img id="goalTeamLogo" class="goal-logo-huge" src="" alt="Goal Team Logo" style="display: none;">
+        <div class="goal-team-name" id="goalTeamName">HEIM</div>
+    </div>
 
     <!-- TOP: PERIOD & TIMER -->
     <div class="top-section">
@@ -345,6 +422,7 @@
         let ws;
         let lastBuzzerCount = 0;
         let audioCtx = null;
+        let goalTimeout = null;
 
         function playBuzzerSound() {
             try {
@@ -375,6 +453,33 @@
             setTimeout(() => overlay.classList.remove("active"), 600);
         }
 
+        // Play Goal Horn Sound
+        function playGoalHorn() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const now = audioCtx.currentTime;
+                
+                // Double pulse Goal Horn
+                [0, 1.4].forEach(offset => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = "sawtooth";
+                    osc.frequency.setValueAtTime(155, now + offset);
+                    osc.frequency.linearRampToValueAtTime(130, now + offset + 1.0);
+                    gain.gain.setValueAtTime(0.85, now + offset);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + offset + 1.1);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + offset);
+                    osc.stop(now + offset + 1.1);
+                });
+            } catch (e) {
+                console.warn("Goal Horn error:", e);
+            }
+        }
+
         window.addEventListener("click", () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }, { once: true });
@@ -398,6 +503,46 @@
             return hex;
         }
 
+        // ==========================================
+        // 5-SECOND GOAL ANIMATION TRIGGER
+        // ==========================================
+        function triggerGoalAnimation(data) {
+            const overlay = document.getElementById("goalOverlay");
+            const title = document.getElementById("goalTitle");
+            const logo = document.getElementById("goalTeamLogo");
+            const name = document.getElementById("goalTeamName");
+
+            const teamColor = data.color || "#ef4444";
+            const textColor = data.text_color || "#ffffff";
+
+            // Dynamic team-color background radial glow
+            overlay.style.background = `radial-gradient(circle at center, ${hexToRgba(teamColor, 0.85)} 0%, #05070c 85%)`;
+            title.style.color = textColor;
+            name.style.color = textColor;
+            name.innerText = data.team_name || "TEAM";
+
+            if (data.logo_url) {
+                logo.src = data.logo_url;
+                logo.style.display = "block";
+            } else {
+                logo.style.display = "none";
+            }
+
+            // Play horn
+            playGoalHorn();
+
+            // Clear existing timeout if multiple goals scored quickly
+            if (goalTimeout) clearTimeout(goalTimeout);
+
+            // Activate Overlay
+            overlay.classList.add("active");
+
+            // Auto Fade-out exactly after 5 seconds (5000ms)
+            goalTimeout = setTimeout(() => {
+                overlay.classList.remove("active");
+            }, 5000);
+        }
+
         function connectWS() {
             const loc = window.location;
             const wsProtocol = loc.protocol === "https:" ? "wss:" : "ws:";
@@ -409,6 +554,8 @@
                 const msg = JSON.parse(event.data);
                 if (msg.type === "STATE_UPDATE") {
                     updateBoard(msg.state);
+                } else if (msg.type === "goal") {
+                    triggerGoalAnimation(msg);
                 }
             };
 
@@ -474,7 +621,7 @@
             document.getElementById("periodVal").innerText = state.period;
             document.getElementById("clockVal").innerText = formatTime(state.time_remaining);
 
-            // Penalties: Home (Supports Unlimited)
+            // Penalties: Home
             const homeContainer = document.getElementById("homePenaltyContainer");
             if (state.home_penalties.length === 0) {
                 homeContainer.innerHTML = '<span style="color: var(--text-label); font-weight: 700; font-size: 2vh;">—</span>';
@@ -490,7 +637,7 @@
                 }).join('');
             }
 
-            // Penalties: Away (Supports Unlimited)
+            // Penalties: Away
             const awayContainer = document.getElementById("awayPenaltyContainer");
             if (state.away_penalties.length === 0) {
                 awayContainer.innerHTML = '<span style="color: var(--text-label); font-weight: 700; font-size: 2vh;">—</span>';

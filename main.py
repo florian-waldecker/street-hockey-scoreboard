@@ -50,9 +50,9 @@ class ScoreboardState:
     def __init__(self):
         # Teams
         self.home_name = "BREMERHAVEN WHALES"
-        self.home_logo = ""  # URL or path like "/uploads/xxx.png"
-        self.home_color = "#ef4444" # Accent color for card background/border
-        self.home_text_color = "#ffffff" # Separate text color for high contrast
+        self.home_logo = ""
+        self.home_color = "#ef4444"
+        self.home_text_color = "#ffffff"
         self.home_score = 0
         self.home_shots = 0
 
@@ -64,12 +64,12 @@ class ScoreboardState:
         self.away_shots = 0
         
         # Period & Timer
-        self.period = "1"  # "1", "2", "3", "OT"
-        self.period_duration = 15 * 60  # Default 15 Minuten
+        self.period = "1"
+        self.period_duration = 15 * 60
         self.time_remaining = self.period_duration
         self.timer_running = False
 
-        # Penalties: list of active penalty slots for Home and Away (can hold unlimited)
+        # Penalties: list of active penalty slots for Home and Away
         self.home_penalties = []
         self.away_penalties = []
         
@@ -142,7 +142,7 @@ async def timer_loop():
             if state.time_remaining > 0:
                 state.time_remaining -= 1
                 
-                # Update Home Penalties (first 2 run concurrently)
+                # Update Home Penalties
                 expired_home = []
                 active_count = 0
                 for p in state.home_penalties:
@@ -209,14 +209,32 @@ async def handle_command(cmd: dict):
         seconds = int(cmd.get("seconds", 0))
         state.time_remaining = max(0, min(state.period_duration, state.time_remaining + seconds))
 
-    # Score
+    # Score & Goal Event Trigger
     elif action == "SCORE_ADJUST":
         team = cmd.get("team")
         delta = int(cmd.get("delta", 0))
         if team == "home":
             state.home_score = max(0, state.home_score + delta)
+            if delta > 0:
+                await manager.broadcast({
+                    "type": "goal",
+                    "team": "home",
+                    "team_name": state.home_name,
+                    "logo_url": state.home_logo,
+                    "color": state.home_color,
+                    "text_color": state.home_text_color
+                })
         elif team == "away":
             state.away_score = max(0, state.away_score + delta)
+            if delta > 0:
+                await manager.broadcast({
+                    "type": "goal",
+                    "team": "away",
+                    "team_name": state.away_name,
+                    "logo_url": state.away_logo,
+                    "color": state.away_color,
+                    "text_color": state.away_text_color
+                })
 
     # Shots on Goal
     elif action == "SHOTS_ADJUST":
@@ -241,7 +259,7 @@ async def handle_command(cmd: dict):
         if "away_text_color" in cmd: state.away_text_color = cmd["away_text_color"]
 
     elif action == "ASSIGN_SAVED_TEAM":
-        team_slot = cmd.get("slot") # "home" or "away"
+        team_slot = cmd.get("slot")
         team_id = cmd.get("team_id")
         teams = load_saved_teams()
         selected = next((t for t in teams if t["id"] == team_id), None)
@@ -318,7 +336,6 @@ async def save_or_update_team(
     logo_url = keep_logo or ""
 
     if team_id:
-        # Edit existing team
         existing_idx = next((i for i, t in enumerate(teams) if t["id"] == team_id), None)
         if existing_idx is None:
             raise HTTPException(status_code=404, detail="Team nicht gefunden")
@@ -327,7 +344,6 @@ async def save_or_update_team(
         if not logo_url and teams[existing_idx].get("logo_url"):
             logo_url = teams[existing_idx]["logo_url"]
     else:
-        # Create new team
         target_id = str(uuid.uuid4())[:8]
 
     if logo and logo.filename:
