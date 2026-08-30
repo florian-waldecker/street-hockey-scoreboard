@@ -3,545 +3,438 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Street Hockey Live Scoreboard</title>
+    <title>Scoreboard Display | Großanzeige</title>
     <style>
         :root {
-            --bg-board: #05070c;
-            --digit-clock: #ffff00;   /* Neon Yellow */
-            --digit-period: #00ff66;  /* Neon Green */
-            --digit-penalty: #ff9900; /* Neon Orange */
-            --text-label: #6b7280;
-            --box-bg: #0c101a;
-            --border-color: #1e293b;
+            --bg-dark: #070a12;
+            --surface-bg: #111726;
+            --surface-card: #182238;
+            --border: #23314e;
+            --accent-home: #ef4444;
+            --accent-away: #00d2ff;
+            --text-main: #ffffff;
+            --text-dim: #8fa0be;
+            --glow-gold: 0 0 35px rgba(250, 204, 21, 0.45);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            user-select: none;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         body {
-            background-color: var(--bg-board);
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
             height: 100vh;
             width: 100vw;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            padding: 2vh 2.5vw;
-            position: relative;
+            padding: 1.5vw;
         }
 
-        /* TOP SECTION: PERIOD & MAIN CLOCK */
-        .top-section {
-            display: flex;
-            justify-content: space-between;
+        /* FULLSCREEN LIVE SCOREBOARD LAYOUT */
+        #matchView {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 1.5vh;
+            height: 100%;
+            width: 100%;
+        }
+
+        /* TOP HEADER BAR */
+        .top-bar {
+            display: grid;
+            grid-template-columns: 1fr 1.6fr 1fr;
             align-items: center;
-            background: var(--box-bg);
-            border: 2px solid var(--border-color);
-            border-radius: 20px;
-            padding: 0.8vh 4vw;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            background: var(--surface-bg);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 1vh 2vw;
         }
 
         .period-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .period-label {
-            font-size: 2vh;
-            font-weight: 800;
-            color: var(--text-label);
-            letter-spacing: 4px;
-            text-transform: uppercase;
-        }
-        .period-val {
-            font-size: 8vh;
+            text-align: center;
+            font-size: 1.8vw;
             font-weight: 900;
-            color: var(--digit-period);
-            line-height: 1;
-            text-shadow: 0 0 25px rgba(0, 255, 102, 0.4);
-            font-variant-numeric: tabular-nums;
-        }
-
-        .clock-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .clock-label {
-            font-size: 1.8vh;
-            font-weight: 800;
-            color: var(--text-label);
-            letter-spacing: 5px;
-            text-transform: uppercase;
-        }
-        .clock-val {
-            font-size: 14.5vh;
-            font-weight: 900;
-            color: var(--digit-clock);
-            line-height: 1;
-            font-variant-numeric: tabular-nums;
-            text-shadow: 0 0 35px rgba(255, 255, 0, 0.5);
             letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #facc15;
         }
 
-        /* MAIN SECTION: HOME vs AWAY */
-        .main-section {
+        .main-clock {
+            text-align: center;
+            font-size: 5.5vw;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            color: #facc15;
+            text-shadow: var(--glow-gold);
+            line-height: 1;
+        }
+
+        /* MAIN TEAMS & SCORE AREA */
+        .teams-container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2.5vw;
-            flex: 1;
-            margin: 1.5vh 0;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 2vw;
+            align-items: center;
+            height: 100%;
         }
 
         .team-card {
-            background: var(--box-bg);
-            border: 2px solid var(--border-color);
-            border-radius: 24px;
+            background: var(--surface-bg);
+            border: 2px solid var(--border);
+            border-radius: 20px;
+            height: 100%;
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: space-between;
-            padding: 2vh 2.5vw;
-            box-shadow: 0 15px 50px rgba(0,0,0,0.7);
+            padding: 2.5vh 2vw;
             position: relative;
-            transition: all 0.3s;
-        }
-
-        /* TEAM NAME - MULTI-LINE SUPPORT WITH CUSTOM TEXT COLOR */
-        .team-name {
-            font-size: 4.8vh;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            text-align: center;
-            line-height: 1.15;
-            max-height: 11vh;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
             overflow: hidden;
-            word-break: break-word;
-            width: 100%;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            transition: all 0.3s ease;
         }
 
-        /* CENTER CONTENT: BIG LOGO + SCORE */
-        .score-row {
+        .team-card-home { border-top: 8px solid var(--accent-home); }
+        .team-card-away { border-top: 8px solid var(--accent-away); }
+
+        .team-identity {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 3vw;
-            width: 100%;
-            margin: auto 0;
+            gap: 1.5vw;
         }
 
-        .team-logo-big {
-            height: 22vh;
-            width: 22vh;
+        .team-logo {
+            width: 7vw;
+            height: 7vw;
             object-fit: contain;
-            filter: drop-shadow(0 0 20px rgba(255,255,255,0.25));
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
             display: none;
         }
-        .team-logo-big.has-logo { display: block; }
+        .team-logo.has-logo { display: block; }
 
-        .score-val {
-            font-size: 24vh;
+        .team-name {
+            font-size: 2.8vw;
             font-weight: 900;
-            line-height: 0.9;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            line-height: 1.1;
         }
 
-        /* STATS BAR (SHOTS ON GOAL) */
-        .team-stats {
+        .team-score {
+            font-size: 13vw;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            text-align: center;
+            line-height: 0.95;
+            margin: auto 0;
+            text-shadow: 0 8px 30px rgba(0,0,0,0.6);
+        }
+
+        .team-stats-row {
             display: flex;
-            align-items: baseline;
-            gap: 1vw;
-            background: rgba(255,255,255,0.03);
-            padding: 0.6vh 2vw;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.06);
-        }
-        .stats-label {
-            font-size: 2vh;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 0.8vh 1.2vw;
+            font-size: 1.2vw;
             font-weight: 700;
-            color: var(--text-label);
-            letter-spacing: 2px;
-        }
-        .stats-val {
-            font-size: 3.8vh;
-            font-weight: 900;
-            color: #ffffff;
-            font-variant-numeric: tabular-nums;
+            color: var(--text-dim);
         }
 
-        /* BOTTOM SECTION: PENALTIES */
-        .penalty-section {
+        .stats-val {
+            color: #fff;
+            font-weight: 900;
+        }
+
+        .vs-divider {
+            font-size: 3vw;
+            font-weight: 900;
+            color: var(--text-dim);
+            opacity: 0.4;
+        }
+
+        /* LOWER INFO BAR: PENALTIES & SCORERS */
+        .bottom-bar {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 2.5vw;
-            min-height: 9vh;
+            gap: 2vw;
+            min-height: 12vh;
+            max-height: 16vh;
         }
 
-        .penalty-box {
-            background: var(--box-bg);
-            border: 2px solid var(--border-color);
-            border-radius: 16px;
+        .info-panel {
+            background: var(--surface-bg);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 1vh 1.4vw;
             display: flex;
-            align-items: center;
-            justify-content: space-around;
-            padding: 0.6vh 1.5vw;
-            overflow-x: auto;
+            flex-direction: column;
+            gap: 0.5vh;
+            overflow: hidden;
         }
 
-        .penalty-title {
-            font-size: 1.8vh;
+        .info-title {
+            font-size: 0.9vw;
             font-weight: 800;
-            color: var(--digit-penalty);
-            letter-spacing: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.3vh;
         }
 
-        .penalty-slots {
+        .ticker-list {
             display: flex;
-            gap: 1.5vw;
+            gap: 1vw;
+            overflow-x: auto;
+            white-space: nowrap;
             align-items: center;
+            height: 100%;
         }
 
-        .penalty-item {
+        .penalty-badge {
+            background: #ef4444;
+            color: white;
+            font-size: 1.1vw;
+            font-weight: 800;
+            padding: 0.4vh 0.8vw;
+            border-radius: 6px;
             display: flex;
             align-items: center;
-            gap: 0.6vw;
-            background: rgba(255, 153, 0, 0.1);
-            border: 1px solid rgba(255, 153, 0, 0.3);
-            padding: 0.4vh 1vw;
-            border-radius: 10px;
+            gap: 0.5vw;
         }
 
-        .penalty-item.bench {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.2);
-            opacity: 0.7;
+        .goal-badge {
+            background: #10b981;
+            color: white;
+            font-size: 1vw;
+            font-weight: 800;
+            padding: 0.3vh 0.7vw;
+            border-radius: 6px;
         }
 
-        .penalty-player {
-            font-size: 2.6vh;
-            font-weight: 900;
-            color: #ffffff;
-        }
-
-        .penalty-timer {
-            font-size: 3.2vh;
-            font-weight: 900;
-            color: var(--digit-penalty);
-            font-variant-numeric: tabular-nums;
-            text-shadow: 0 0 15px rgba(255, 153, 0, 0.5);
-        }
-
-        .penalty-item.bench .penalty-timer {
-            color: #94a3b8;
-            text-shadow: none;
-        }
-
-        /* ==========================================
-           FULLSCREEN 5-SECOND GOAL OVERLAY
-           ========================================== */
-        #goalOverlay {
+        /* ================= BREAK / INTERMISSION FULLSCREEN VIEW ================= */
+        #breakView {
+            display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 10000;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at center, #111827 0%, #030712 100%);
+            z-index: 500;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3vh 3vw;
+        }
+        #breakView.active { display: flex; }
+
+        .break-header {
+            text-align: center;
             display: flex;
+            flex-direction: column;
+            gap: 0.5vh;
+        }
+        .break-title {
+            font-size: 2.2vw;
+            font-weight: 900;
+            letter-spacing: 4px;
+            color: #a78bfa;
+            text-transform: uppercase;
+        }
+        .break-clock {
+            font-size: 7.5vw;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            color: #facc15;
+            text-shadow: var(--glow-gold);
+            line-height: 1;
+        }
+        .break-score-summary {
+            font-size: 2vw;
+            font-weight: 800;
+            color: #cbd5e1;
+        }
+
+        /* SPONSOR SLIDESHOW CONTAINER */
+        .sponsor-stage {
+            flex: 1;
+            width: 85vw;
+            max-height: 52vh;
+            margin: 2vh auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .sponsor-slide {
+            position: absolute;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 25px rgba(0,0,0,0.7));
+            opacity: 0;
+            transition: opacity 1.2s ease-in-out, transform 1.2s ease-in-out;
+            transform: scale(0.95);
+        }
+        .sponsor-slide.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* ================= 5-SECOND GOAL OVERLAY ================= */
+        #goalOverlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.88);
+            backdrop-filter: blur(8px);
+            z-index: 999;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            gap: 2vh;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s ease-in-out;
-            background: #05070c;
+            text-align: center;
+            animation: fadeIn 0.3s ease;
+        }
+        #goalOverlay.active { display: flex; }
+
+        .goal-hero-title {
+            font-size: 10vw;
+            font-weight: 900;
+            color: #facc15;
+            text-shadow: 0 0 50px rgba(250, 204, 21, 0.8);
+            letter-spacing: 6px;
+            animation: pulseText 0.8s infinite alternate;
         }
 
-        #goalOverlay.active {
-            opacity: 1;
-            pointer-events: auto;
-            animation: goalPulse 1.2s infinite alternate ease-in-out;
-        }
-
-        @keyframes goalPulse {
-            0% { transform: scale(1); filter: brightness(1); }
-            100% { transform: scale(1.02); filter: brightness(1.25); }
-        }
-
-        .goal-text-huge {
-            font-size: 24vh;
+        .goal-hero-team {
+            font-size: 4vw;
             font-weight: 900;
             text-transform: uppercase;
-            letter-spacing: 1.5vw;
-            line-height: 1;
-            text-shadow: 0 0 60px rgba(255,255,255,0.8), 0 0 120px rgba(0,0,0,0.9);
-            animation: goalTextBounce 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+            margin-top: 1vh;
         }
 
-        @keyframes goalTextBounce {
-            0% { transform: scale(0.96) translateY(0); }
-            100% { transform: scale(1.06) translateY(-10px); }
+        .goal-hero-scorer {
+            font-size: 3vw;
+            font-weight: 800;
+            color: #38bdf8;
+            margin-top: 2vh;
+            background: rgba(56, 189, 248, 0.15);
+            padding: 1vh 3vw;
+            border-radius: 50px;
+            border: 2px solid #38bdf8;
         }
 
-        .goal-logo-huge {
-            max-height: 36vh;
-            max-width: 45vw;
+        .goal-hero-logo {
+            width: 12vw;
+            height: 12vw;
             object-fit: contain;
-            filter: drop-shadow(0 0 40px rgba(255,255,255,0.6));
-            animation: goalLogoSpin 5s ease-out;
+            margin-top: 2vh;
         }
 
-        @keyframes goalLogoSpin {
-            0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
-            20% { transform: scale(1.1) rotate(3deg); opacity: 1; }
-            40% { transform: scale(1) rotate(0deg); }
+        @keyframes pulseText {
+            0% { transform: scale(0.96); }
+            100% { transform: scale(1.04); }
         }
-
-        .goal-team-name {
-            font-size: 7vh;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.9);
-        }
-
-        /* BUZZER FLASH OVERLAY */
-        #buzzerOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(255, 0, 0, 0.4);
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.1s ease-out;
-            z-index: 999;
-        }
-
-        #buzzerOverlay.active {
-            opacity: 1;
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     </style>
 </head>
 <body>
 
-    <div id="buzzerOverlay"></div>
+    <!-- MATCH VIEW -->
+    <div id="matchView">
+        
+        <!-- TOP BAR -->
+        <div class="top-bar">
+            <div class="period-box" id="periodDisplay">DRITTEL 1</div>
+            <div class="main-clock" id="clockDisplay">15:00</div>
+            <div style="text-align: right; font-size: 1.1vw; font-weight: 800; color: var(--text-dim);" id="timeFormatLabel">RESTZEIT</div>
+        </div>
 
-    <!-- FULLSCREEN GOAL OVERLAY -->
+        <!-- MAIN TEAMS & SCORE -->
+        <div class="teams-container">
+            <!-- HOME -->
+            <div class="team-card team-card-home" id="homeCard">
+                <div class="team-identity">
+                    <img id="homeLogo" class="team-logo" src="" alt="Home Logo">
+                    <div class="team-name" id="homeName">HEIM</div>
+                </div>
+                <div class="team-score" id="homeScore" style="color: var(--accent-home);">0</div>
+                <div class="team-stats-row">
+                    <span>SCHÜSSE</span>
+                    <span class="stats-val" id="homeShots">0</span>
+                </div>
+            </div>
+
+            <div class="vs-divider">:</div>
+
+            <!-- AWAY -->
+            <div class="team-card team-card-away" id="awayCard">
+                <div class="team-identity">
+                    <img id="awayLogo" class="team-logo" src="" alt="Away Logo">
+                    <div class="team-name" id="awayName">GAST</div>
+                </div>
+                <div class="team-score" id="awayScore" style="color: var(--accent-away);">0</div>
+                <div class="team-stats-row">
+                    <span>SCHÜSSE</span>
+                    <span class="stats-val" id="awayShots">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOWER BAR: PENALTIES & SCORERS -->
+        <div class="bottom-bar">
+            <div class="info-panel">
+                <div class="info-title">STRAFZEITEN (PENALTIES)</div>
+                <div class="ticker-list" id="penaltyList">
+                    <span style="color: var(--text-dim); font-size: 1vw;">Keine aktiven Strafen</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="info-title">LETZTE TORE (GOAL SCORERS)</div>
+                <div class="ticker-list" id="goalsList">
+                    <span style="color: var(--text-dim); font-size: 1vw;">Noch keine Tore</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- BREAK / INTERMISSION FULLSCREEN VIEW -->
+    <div id="breakView">
+        <div class="break-header">
+            <div class="break-title">☕ DRITTELPAUSE</div>
+            <div class="break-clock" id="breakClockDisplay">05:00</div>
+            <div class="break-score-summary" id="breakScoreSummary">HEIM 0 : 0 GAST</div>
+        </div>
+
+        <div class="sponsor-stage" id="sponsorStage">
+            <!-- Sponsor images injected dynamically -->
+            <div style="color: var(--text-dim); font-size: 1.5vw;" id="noSponsorsNotice">Präsentiert von unseren Sponsoren</div>
+        </div>
+    </div>
+
+    <!-- 5-SEC GOAL OVERLAY -->
     <div id="goalOverlay">
-        <div class="goal-text-huge" id="goalTitle">TOR!</div>
-        <img id="goalTeamLogo" class="goal-logo-huge" src="" alt="Goal Team Logo" style="display: none;">
-        <div class="goal-team-name" id="goalTeamName">HEIM</div>
+        <div class="goal-hero-title">🚨 TOOOOOR! 🚨</div>
+        <img id="goalHeroLogo" class="goal-hero-logo" src="" alt="" style="display:none;">
+        <div class="goal-hero-team" id="goalHeroTeam">HEIMTEAM</div>
+        <div class="goal-hero-scorer" id="goalHeroScorer">#10 Max Mustermann</div>
     </div>
 
-    <!-- TOP: PERIOD & TIMER -->
-    <div class="top-section">
-        <div class="period-box">
-            <span class="period-label">DRITTEL</span>
-            <span class="period-val" id="periodVal">1</span>
-        </div>
-
-        <div class="clock-box">
-            <span class="clock-label">SPIELZEIT</span>
-            <span class="clock-val" id="clockVal">15:00</span>
-        </div>
-
-        <div class="period-box" style="visibility: hidden;">
-            <span class="period-label">DRITTEL</span>
-            <span class="period-val">1</span>
-        </div>
-    </div>
-
-    <!-- MAIN: TEAMS, SCORE & SHOTS -->
-    <div class="main-section">
-        <!-- HOME -->
-        <div class="team-card" id="homeCard">
-            <div class="team-name" id="homeName">BREMERHAVEN WHALES</div>
-            
-            <div class="score-row">
-                <img id="homeLogo" class="team-logo-big" src="" alt="Logo Heim">
-                <div class="score-val" id="homeScore">0</div>
-            </div>
-
-            <div class="team-stats">
-                <span class="stats-label">SCHÜSSE:</span>
-                <span class="stats-val" id="homeShots">0</span>
-            </div>
-        </div>
-
-        <!-- AWAY -->
-        <div class="team-card" id="awayCard">
-            <div class="team-name" id="awayName">WOLFSBURG WOLFRIDERS</div>
-            
-            <div class="score-row">
-                <img id="awayLogo" class="team-logo-big" src="" alt="Logo Gast">
-                <div class="score-val" id="awayScore">0</div>
-            </div>
-
-            <div class="team-stats">
-                <span class="stats-label">SCHÜSSE:</span>
-                <span class="stats-val" id="awayShots">0</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- BOTTOM: PENALTIES -->
-    <div class="penalty-section">
-        <!-- HOME PENALTIES -->
-        <div class="penalty-box">
-            <span class="penalty-title">STRAFEN</span>
-            <div class="penalty-slots" id="homePenaltyContainer">
-                <span style="color: var(--text-label); font-weight: 700; font-size: 2vh;">—</span>
-            </div>
-        </div>
-
-        <!-- AWAY PENALTIES -->
-        <div class="penalty-box">
-            <span class="penalty-title">STRAFEN</span>
-            <div class="penalty-slots" id="awayPenaltyContainer">
-                <span style="color: var(--text-label); font-weight: 700; font-size: 2vh;">—</span>
-            </div>
-        </div>
-    </div>
+    <!-- AUDIO FOR BUZZER & GOAL HORN -->
+    <audio id="hornSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YV9vT18A" type="audio/wav">
+    </audio>
 
     <script>
         let ws;
-        let lastBuzzerCount = 0;
-        let audioCtx = null;
+        let sponsorsList = [];
+        let sponsorIndex = 0;
+        let sponsorInterval = null;
         let goalTimeout = null;
-
-        function playBuzzerSound() {
-            try {
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-
-                osc.type = "sawtooth";
-                osc.frequency.setValueAtTime(140, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 1.2);
-
-                gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
-
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-
-                osc.start();
-                osc.stop(audioCtx.currentTime + 1.5);
-            } catch (e) {
-                console.warn("Audio error:", e);
-            }
-
-            const overlay = document.getElementById("buzzerOverlay");
-            overlay.classList.add("active");
-            setTimeout(() => overlay.classList.remove("active"), 600);
-        }
-
-        // Play Goal Horn Sound
-        function playGoalHorn() {
-            try {
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                const now = audioCtx.currentTime;
-                
-                // Double pulse Goal Horn
-                [0, 1.4].forEach(offset => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = "sawtooth";
-                    osc.frequency.setValueAtTime(155, now + offset);
-                    osc.frequency.linearRampToValueAtTime(130, now + offset + 1.0);
-                    gain.gain.setValueAtTime(0.85, now + offset);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + offset + 1.1);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(now + offset);
-                    osc.stop(now + offset + 1.1);
-                });
-            } catch (e) {
-                console.warn("Goal Horn error:", e);
-            }
-        }
-
-        window.addEventListener("click", () => {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }, { once: true });
-
-        function formatTime(totalSeconds) {
-            const mins = Math.floor(totalSeconds / 60);
-            const secs = totalSeconds % 60;
-            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-        }
-
-        function hexToRgba(hex, alpha) {
-            let c;
-            if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
-                c = hex.substring(1).split('');
-                if (c.length === 3) {
-                    c = [c[0], c[0], c[1], c[1], c[2], c[2]];
-                }
-                c = '0x' + c.join('');
-                return `rgba(${[(c>>16)&255, (c>>8)&255, c&255].join(',')}, ${alpha})`;
-            }
-            return hex;
-        }
-
-        // ==========================================
-        // 5-SECOND GOAL ANIMATION TRIGGER
-        // ==========================================
-        function triggerGoalAnimation(data) {
-            const overlay = document.getElementById("goalOverlay");
-            const title = document.getElementById("goalTitle");
-            const logo = document.getElementById("goalTeamLogo");
-            const name = document.getElementById("goalTeamName");
-
-            const teamColor = data.color || "#ef4444";
-            const textColor = data.text_color || "#ffffff";
-
-            // Dynamic team-color background radial glow
-            overlay.style.background = `radial-gradient(circle at center, ${hexToRgba(teamColor, 0.85)} 0%, #05070c 85%)`;
-            title.style.color = textColor;
-            name.style.color = textColor;
-            name.innerText = data.team_name || "TEAM";
-
-            if (data.logo_url) {
-                logo.src = data.logo_url;
-                logo.style.display = "block";
-            } else {
-                logo.style.display = "none";
-            }
-
-            // Play horn
-            playGoalHorn();
-
-            // Clear existing timeout if multiple goals scored quickly
-            if (goalTimeout) clearTimeout(goalTimeout);
-
-            // Activate Overlay
-            overlay.classList.add("active");
-
-            // Auto Fade-out exactly after 5 seconds (5000ms)
-            goalTimeout = setTimeout(() => {
-                overlay.classList.remove("active");
-            }, 5000);
-        }
 
         function connectWS() {
             const loc = window.location;
@@ -553,9 +446,11 @@
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 if (msg.type === "STATE_UPDATE") {
-                    updateBoard(msg.state);
+                    renderState(msg.state);
                 } else if (msg.type === "goal") {
-                    triggerGoalAnimation(msg);
+                    showGoalOverlay(msg);
+                } else if (msg.type === "buzzer") {
+                    playBuzzerSound();
                 }
             };
 
@@ -564,103 +459,197 @@
             };
         }
 
-        function updateBoard(state) {
-            // Teams & Score
-            const homeNameEl = document.getElementById("homeName");
-            const awayNameEl = document.getElementById("awayName");
-
-            homeNameEl.innerText = state.home_name;
-            awayNameEl.innerText = state.away_name;
-
-            // Separate Text Color Support
-            if (state.home_text_color) homeNameEl.style.color = state.home_text_color;
-            if (state.away_text_color) awayNameEl.style.color = state.away_text_color;
-
-            document.getElementById("homeScore").innerText = state.home_score;
-            document.getElementById("awayScore").innerText = state.away_score;
-            document.getElementById("homeShots").innerText = state.home_shots;
-            document.getElementById("awayShots").innerText = state.away_shots;
-
-            // Custom Team Colors (Border, Score Glow & Background Tint)
-            const homeCard = document.getElementById("homeCard");
-            const homeScore = document.getElementById("homeScore");
-            if (state.home_color) {
-                homeCard.style.borderTop = `8px solid ${state.home_color}`;
-                homeCard.style.background = `linear-gradient(180deg, ${hexToRgba(state.home_color, 0.15)} 0%, #0c101a 100%)`;
-                homeScore.style.color = state.home_color;
-                homeScore.style.textShadow = `0 0 45px ${hexToRgba(state.home_color, 0.5)}`;
-            }
-
-            const awayCard = document.getElementById("awayCard");
-            const awayScore = document.getElementById("awayScore");
-            if (state.away_color) {
-                awayCard.style.borderTop = `8px solid ${state.away_color}`;
-                awayCard.style.background = `linear-gradient(180deg, ${hexToRgba(state.away_color, 0.15)} 0%, #0c101a 100%)`;
-                awayScore.style.color = state.away_color;
-                awayScore.style.textShadow = `0 0 45px ${hexToRgba(state.away_color, 0.5)}`;
-            }
-
-            // Logos (Big next to Score)
-            const homeLogo = document.getElementById("homeLogo");
-            if (state.home_logo) {
-                homeLogo.src = state.home_logo;
-                homeLogo.className = "team-logo-big has-logo";
-            } else {
-                homeLogo.className = "team-logo-big";
-            }
-
-            const awayLogo = document.getElementById("awayLogo");
-            if (state.away_logo) {
-                awayLogo.src = state.away_logo;
-                awayLogo.className = "team-logo-big has-logo";
-            } else {
-                awayLogo.className = "team-logo-big";
-            }
-
-            // Period & Clock
-            document.getElementById("periodVal").innerText = state.period;
-            document.getElementById("clockVal").innerText = formatTime(state.time_remaining);
-
-            // Penalties: Home
-            const homeContainer = document.getElementById("homePenaltyContainer");
-            if (state.home_penalties.length === 0) {
-                homeContainer.innerHTML = '<span style="color: var(--text-label); font-weight: 700; font-size: 2vh;">—</span>';
-            } else {
-                homeContainer.innerHTML = state.home_penalties.map((p, idx) => {
-                    const isBench = idx >= 2;
-                    return `
-                        <div class="penalty-item ${isBench ? 'bench' : ''}">
-                            <span class="penalty-player">#${p.player}</span>
-                            <span class="penalty-timer">${formatTime(p.remaining_seconds)}</span>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            // Penalties: Away
-            const awayContainer = document.getElementById("awayPenaltyContainer");
-            if (state.away_penalties.length === 0) {
-                awayContainer.innerHTML = '<span style="color: var(--text-label); font-weight: 700; font-size: 2vh;">—</span>';
-            } else {
-                awayContainer.innerHTML = state.away_penalties.map((p, idx) => {
-                    const isBench = idx >= 2;
-                    return `
-                        <div class="penalty-item ${isBench ? 'bench' : ''}">
-                            <span class="penalty-player">#${p.player}</span>
-                            <span class="penalty-timer">${formatTime(p.remaining_seconds)}</span>
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            // Buzzer Trigger Check
-            if (lastBuzzerCount !== 0 && state.buzzer_trigger > lastBuzzerCount) {
-                playBuzzerSound();
-            }
-            lastBuzzerCount = state.buzzer_trigger;
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
+        function renderState(s) {
+            // Clock & Period
+            document.getElementById("clockDisplay").innerText = formatTime(s.time_remaining);
+            document.getElementById("periodDisplay").innerText = s.period === "OT" ? "OVERTIME" : `DRITTEL ${s.period}`;
+
+            // Home
+            document.getElementById("homeName").innerText = s.home_name;
+            document.getElementById("homeScore").innerText = s.home_score;
+            document.getElementById("homeShots").innerText = s.home_shots;
+            document.getElementById("homeScore").style.color = s.home_color || 'var(--accent-home)';
+            document.getElementById("homeCard").style.borderTopColor = s.home_color || 'var(--accent-home)';
+
+            const homeLogo = document.getElementById("homeLogo");
+            if (s.home_logo) {
+                homeLogo.src = s.home_logo;
+                homeLogo.classList.add("has-logo");
+            } else {
+                homeLogo.classList.remove("has-logo");
+            }
+
+            // Away
+            document.getElementById("awayName").innerText = s.away_name;
+            document.getElementById("awayScore").innerText = s.away_score;
+            document.getElementById("awayShots").innerText = s.away_shots;
+            document.getElementById("awayScore").style.color = s.away_color || 'var(--accent-away)';
+            document.getElementById("awayCard").style.borderTopColor = s.away_color || 'var(--accent-away)';
+
+            const awayLogo = document.getElementById("awayLogo");
+            if (s.away_logo) {
+                awayLogo.src = s.away_logo;
+                awayLogo.classList.add("has-logo");
+            } else {
+                awayLogo.classList.remove("has-logo");
+            }
+
+            // Penalties
+            renderPenalties(s.home_penalties, s.away_penalties, s.home_name, s.away_name);
+
+            // Goals list
+            renderGoals(s.home_goals || [], s.away_goals || [], s.home_name, s.away_name);
+
+            // Break / Intermission View
+            const breakView = document.getElementById("breakView");
+            if (s.break_mode) {
+                breakView.classList.add("active");
+                document.getElementById("breakClockDisplay").innerText = formatTime(s.break_time_remaining || 0);
+                document.getElementById("breakScoreSummary").innerText = `${s.home_name}  ${s.home_score} : ${s.away_score}  ${s.away_name}`;
+                startSponsorSlideshow();
+            } else {
+                breakView.classList.remove("active");
+                stopSponsorSlideshow();
+            }
+        }
+
+        function renderPenalties(homePens = [], awayPens = [], homeName, awayName) {
+            const list = document.getElementById("penaltyList");
+            const allPens = [];
+
+            homePens.forEach(p => allPens.push({ team: homeName, ...p }));
+            awayPens.forEach(p => allPens.push({ team: awayName, ...p }));
+
+            if (allPens.length === 0) {
+                list.innerHTML = '<span style="color: var(--text-dim); font-size: 1vw;">Keine aktiven Strafen</span>';
+                return;
+            }
+
+            list.innerHTML = allPens.map(p => `
+                <div class="penalty-badge">
+                    <span>${p.team} #${p.player}</span>
+                    <span style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">${formatTime(p.remaining_seconds)}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderGoals(homeGoals = [], awayGoals = [], homeName, awayName) {
+            const list = document.getElementById("goalsList");
+            const combined = [];
+
+            homeGoals.forEach(g => combined.push({ team: homeName, ...g }));
+            awayGoals.forEach(g => combined.push({ team: awayName, ...g }));
+
+            if (combined.length === 0) {
+                list.innerHTML = '<span style="color: var(--text-dim); font-size: 1vw;">Noch keine Tore</span>';
+                return;
+            }
+
+            list.innerHTML = combined.slice(-5).map(g => `
+                <div class="goal-badge">
+                    <span>${g.time} (${g.team}): ${g.player}</span>
+                </div>
+            `).join('');
+        }
+
+        // ================= GOAL OVERLAY =================
+        function showGoalOverlay(data) {
+            const overlay = document.getElementById("goalOverlay");
+            const teamEl = document.getElementById("goalHeroTeam");
+            const scorerEl = document.getElementById("goalHeroScorer");
+            const logoEl = document.getElementById("goalHeroLogo");
+
+            teamEl.innerText = data.team_name || (data.team === "home" ? "HEIM" : "GAST");
+            scorerEl.innerText = data.scorer ? `Torschütze: ${data.scorer}` : "TOR!";
+
+            if (data.team_logo) {
+                logoEl.src = data.team_logo;
+                logoEl.style.display = "block";
+            } else {
+                logoEl.style.display = "none";
+            }
+
+            overlay.classList.add("active");
+
+            if (goalTimeout) clearTimeout(goalTimeout);
+            goalTimeout = setTimeout(() => {
+                overlay.classList.remove("active");
+            }, 5000);
+        }
+
+        // ================= SPONSOR SLIDESHOW =================
+        async function loadSponsors() {
+            try {
+                const res = await fetch("/api/sponsors");
+                sponsorsList = await res.json();
+                buildSponsorElements();
+            } catch (e) {
+                console.error("Error loading sponsors:", e);
+            }
+        }
+
+        function buildSponsorElements() {
+            const stage = document.getElementById("sponsorStage");
+            if (!sponsorsList || sponsorsList.length === 0) {
+                stage.innerHTML = '<div style="color: var(--text-dim); font-size: 1.5vw;" id="noSponsorsNotice">Präsentiert von unseren Sponsoren</div>';
+                return;
+            }
+
+            stage.innerHTML = sponsorsList.map((s, idx) => `
+                <img src="${s.url}" class="sponsor-slide ${idx === 0 ? 'visible' : ''}" id="sponsorSlide_${idx}">
+            `).join('');
+        }
+
+        function startSponsorSlideshow() {
+            if (sponsorInterval || sponsorsList.length <= 1) return;
+            sponsorInterval = setInterval(() => {
+                const total = sponsorsList.length;
+                if (total <= 1) return;
+
+                const prev = document.getElementById(`sponsorSlide_${sponsorIndex}`);
+                if (prev) prev.classList.remove("visible");
+
+                sponsorIndex = (sponsorIndex + 1) % total;
+
+                const next = document.getElementById(`sponsorSlide_${sponsorIndex}`);
+                if (next) next.classList.add("visible");
+            }, 4000);
+        }
+
+        function stopSponsorSlideshow() {
+            if (sponsorInterval) {
+                clearInterval(sponsorInterval);
+                sponsorInterval = null;
+            }
+        }
+
+        function playBuzzerSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, ctx.currentTime);
+                gain.gain.setValueAtTime(0.8, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 1.2);
+            } catch (e) {
+                console.log("Audio not supported or allowed yet.");
+            }
+        }
+
+        // INIT
         connectWS();
+        loadSponsors();
     </script>
 </body>
 </html>
