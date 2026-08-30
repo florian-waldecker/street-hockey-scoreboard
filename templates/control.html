@@ -892,8 +892,7 @@
             const playersRaw = document.getElementById("formTeamPlayers").value.trim();
             const logoFile = document.getElementById("formTeamLogo").files[0];
 
-            const playersArr = playersRaw ? playersRaw.split(/[
-,]+/).map(s => s.trim()).filter(Boolean) : [];
+            const playersArr = playersRaw ? playersRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean) : [];
 
             const formData = new FormData();
             if (id) formData.append("id", id);
