@@ -1,110 +1,124 @@
-import asyncio
+import os
 import json
 import logging
-import os
-import shutil
+import asyncio
 import uuid
-from typing import Set
+import shutil
+from typing import Set, List, Dict, Any, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("Scoreboard")
+logger = logging.getLogger("scoreboard")
 
-app = FastAPI(title="Street Hockey Scoreboard")
+app = FastAPI(title="Street Hockey Scoreboard Hub")
 
-# Directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 SPONSORS_UPLOAD_DIR = os.path.join(UPLOAD_DIR, "sponsors")
 DATA_DIR = os.path.join(BASE_DIR, "data")
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-
 TEAMS_FILE = os.path.join(DATA_DIR, "teams.json")
 SPONSORS_FILE = os.path.join(DATA_DIR, "sponsors.json")
 
+os.makedirs(STATIC_DIR, exist_ok=True)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(SPONSORS_UPLOAD_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(STATIC_DIR, exist_ok=True)
 
-# Static mounts
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
-# Helper: Team Database Management
-def load_saved_teams() -> list:
-    if os.path.exists(TEAMS_FILE):
-        try:
-            with open(TEAMS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return []
-    return []
-
-def save_teams_db(teams: list):
-    with open(TEAMS_FILE, "w", encoding="utf-8") as f:
-        json.dump(teams, f, ensure_ascii=False, indent=2)
-
-# Helper: Sponsors Database Management
-def load_sponsors() -> list:
-    if os.path.exists(SPONSORS_FILE):
-        try:
-            with open(SPONSORS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return []
-    return []
-
-def save_sponsors_db(sponsors: list):
-    with open(SPONSORS_FILE, "w", encoding="utf-8") as f:
-        json.dump(sponsors, f, ensure_ascii=False, indent=2)
 
 # ==========================================
-# STATE & DATA MODEL
+# PERSISTENCE HELPERS
+# ==========================================
+def load_saved_teams() -> List[Dict[str, Any]]:
+    if not os.path.exists(TEAMS_FILE):
+        return []
+    try:
+        with open(TEAMS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Error loading teams: {e}")
+        return []
+
+def save_teams_db(teams: List[Dict[str, Any]]):
+    try:
+        with open(TEAMS_FILE, "w", encoding="utf-8") as f:
+            json.dump(teams, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving teams: {e}")
+
+def load_sponsors() -> List[Dict[str, Any]]:
+    if not os.path.exists(SPONSORS_FILE):
+        return []
+    try:
+        with open(SPONSORS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            for s in data:
+                if "url" not in s and "image_url" in s:
+                    s["url"] = s["image_url"]
+            return data
+    except Exception as e:
+        logger.error(f"Error loading sponsors: {e}")
+        return []
+
+def save_sponsors_db(sponsors: List[Dict[str, Any]]):
+    try:
+        for s in sponsors:
+            if "url" not in s and "image_url" in s:
+                s["url"] = s["image_url"]
+        with open(SPONSORS_FILE, "w", encoding="utf-8") as f:
+            json.dump(sponsors, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving sponsors: {e}")
+
+
+# ==========================================
+# SCOREBOARD STATE MODEL
 # ==========================================
 class ScoreboardState:
     def __init__(self):
-        # Teams
-        self.home_name = "BREMERHAVEN WHALES"
-        self.home_logo = ""
-        self.home_color = "#ef4444"
-        self.home_text_color = "#ffffff"
-        self.home_score = 0
-        self.home_shots = 0
-        self.home_players = [] # [{'number': '10', 'name': 'M. Mustermann'}]
-        self.home_goals = []   # [{'player': '#10 Mustermann', 'time': '04:12', 'period': '1'}]
+        # Home
+        self.home_name: str = "HEIM"
+        self.home_logo: str = ""
+        self.home_color: str = "#ef4444"
+        self.home_text_color: str = "#ffffff"
+        self.home_score: int = 0
+        self.home_shots: int = 0
+        self.home_penalties: List[Dict[str, Any]] = []
+        self.home_players: List[str] = []
+        self.home_goals: List[Dict[str, Any]] = []
 
-        self.away_name = "WOLFSBURG WOLFRIDERS"
-        self.away_logo = ""
-        self.away_color = "#00e5ff"
-        self.away_text_color = "#ffffff"
-        self.away_score = 0
-        self.away_shots = 0
-        self.away_players = []
-        self.away_goals = []
-        
-        # Period & Game Timer
-        self.period = "1"
-        self.period_duration = 15 * 60
-        self.time_remaining = self.period_duration
-        self.timer_running = False
+        # Away
+        self.away_name: str = "GAST"
+        self.away_logo: str = ""
+        self.away_color: str = "#00d2ff"
+        self.away_text_color: str = "#ffffff"
+        self.away_score: int = 0
+        self.away_shots: int = 0
+        self.away_penalties: List[Dict[str, Any]] = []
+        self.away_players: List[str] = []
+        self.away_goals: List[Dict[str, Any]] = []
 
-        # Break / Intermission Timer
-        self.break_mode = False
-        self.break_duration = 10 * 60
-        self.break_time_remaining = self.break_duration
-        self.break_timer_running = False
+        # Game Clock
+        self.period: str = "1"
+        self.period_duration: int = 900  # 15 minutes default
+        self.time_remaining: int = 900
+        self.timer_running: bool = False
 
-        # Penalties: list of active penalty slots
-        self.home_penalties = []
-        self.away_penalties = []
-        
-        # Audio Buzzer Event Flag
-        self.buzzer_trigger = 0
+        # Break / Intermission Mode
+        self.break_mode: bool = False
+        self.break_duration: int = 300  # 5 minutes default
+        self.break_time_remaining: int = 300
+        self.break_timer_running: bool = False
 
-    def to_dict(self):
+        # Triggers
+        self.buzzer_trigger: int = 0
+
+    def to_dict(self) -> dict:
         return {
             "home_name": self.home_name,
             "home_logo": self.home_logo,
@@ -112,6 +126,7 @@ class ScoreboardState:
             "home_text_color": self.home_text_color,
             "home_score": self.home_score,
             "home_shots": self.home_shots,
+            "home_penalties": self.home_penalties,
             "home_players": self.home_players,
             "home_goals": self.home_goals,
 
@@ -121,6 +136,7 @@ class ScoreboardState:
             "away_text_color": self.away_text_color,
             "away_score": self.away_score,
             "away_shots": self.away_shots,
+            "away_penalties": self.away_penalties,
             "away_players": self.away_players,
             "away_goals": self.away_goals,
 
@@ -134,16 +150,14 @@ class ScoreboardState:
             "break_time_remaining": self.break_time_remaining,
             "break_timer_running": self.break_timer_running,
 
-            "home_penalties": self.home_penalties,
-            "away_penalties": self.away_penalties,
-            "buzzer_trigger": self.buzzer_trigger,
-            "sponsors": load_sponsors()
+            "buzzer_trigger": self.buzzer_trigger
         }
 
 state = ScoreboardState()
 
+
 # ==========================================
-# WEBSOCKET CONNECTION MANAGER
+# WEBSOCKET MANAGER
 # ==========================================
 class ConnectionManager:
     def __init__(self):
@@ -163,7 +177,7 @@ class ConnectionManager:
             return
         payload = json.dumps(message)
         dead_connections = set()
-        for connection in self.active_connections:
+        for connection in list(self.active_connections):
             try:
                 await connection.send_text(payload)
             except Exception:
@@ -173,79 +187,12 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# ==========================================
-# BACKGROUND TIMERS LOOP (Asyncio)
-# ==========================================
-async def timer_loop():
-    while True:
-        await asyncio.sleep(1.0)
-        state_changed = False
-
-        # 1. Main Game Timer Loop
-        if state.timer_running and not state.break_mode:
-            if state.time_remaining > 0:
-                state.time_remaining -= 1
-                state_changed = True
-                
-                # Update Home Penalties
-                expired_home = []
-                active_count = 0
-                for p in state.home_penalties:
-                    if active_count < 2:
-                        active_count += 1
-                        if p["remaining_seconds"] > 0:
-                            p["remaining_seconds"] -= 1
-                        else:
-                            expired_home.append(p)
-                for p in expired_home:
-                    if p in state.home_penalties:
-                        state.home_penalties.remove(p)
-
-                # Update Away Penalties
-                expired_away = []
-                active_count = 0
-                for p in state.away_penalties:
-                    if active_count < 2:
-                        active_count += 1
-                        if p["remaining_seconds"] > 0:
-                            p["remaining_seconds"] -= 1
-                        else:
-                            expired_away.append(p)
-                for p in expired_away:
-                    if p in state.away_penalties:
-                        state.away_penalties.remove(p)
-
-                if state.time_remaining == 0:
-                    state.timer_running = False
-                    state.buzzer_trigger += 1
-
-            else:
-                state.timer_running = False
-                state_changed = True
-
-        # 2. Break / Intermission Timer Loop
-        if state.break_timer_running and state.break_mode:
-            if state.break_time_remaining > 0:
-                state.break_time_remaining -= 1
-                state_changed = True
-                if state.break_time_remaining == 0:
-                    state.break_timer_running = False
-                    state.buzzer_trigger += 1
-            else:
-                state.break_timer_running = False
-                state_changed = True
-
-        if state_changed:
-            await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
-
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(timer_loop())
 
 def format_game_time(seconds: int) -> str:
-    m = seconds // 60
-    s = seconds % 60
+    m = max(0, seconds) // 60
+    s = max(0, seconds) % 60
     return f"{m:02d}:{s:02d}"
+
 
 # ==========================================
 # COMMAND HANDLER
@@ -253,7 +200,7 @@ def format_game_time(seconds: int) -> str:
 async def handle_command(cmd: dict):
     action = cmd.get("action")
 
-    # Game Timer
+    # --- Game Timer ---
     if action == "TIMER_START":
         if state.time_remaining > 0:
             state.timer_running = True
@@ -270,32 +217,48 @@ async def handle_command(cmd: dict):
     elif action == "TIMER_RESET":
         state.timer_running = False
         state.time_remaining = state.period_duration
-    elif action == "TIMER_SET_DURATION":
-        minutes = int(cmd.get("minutes", 15))
-        state.period_duration = minutes * 60
+    elif action in ("TIMER_SET_DURATION", "PERIOD_DURATION_SET"):
+        if "duration" in cmd:
+            state.period_duration = int(cmd["duration"])
+        elif "minutes" in cmd:
+            state.period_duration = int(cmd["minutes"]) * 60
         state.time_remaining = state.period_duration
         state.timer_running = False
     elif action == "TIMER_ADJUST":
         seconds = int(cmd.get("seconds", 0))
         state.time_remaining = max(0, min(state.period_duration, state.time_remaining + seconds))
 
-    # Break Timer Controls
-    elif action == "BREAK_START":
-        minutes = int(cmd.get("minutes", 10))
-        state.break_duration = minutes * 60
-        state.break_time_remaining = state.break_duration
+    # --- Break / Intermission Timer ---
+    elif action in ("BREAK_START", "BREAK_MODE_SET"):
+        active = cmd.get("active", True)
+        state.break_mode = bool(active)
+        if state.break_mode:
+            state.timer_running = False
+            if "duration" in cmd:
+                state.break_duration = int(cmd["duration"])
+                state.break_time_remaining = state.break_duration
+            elif "minutes" in cmd:
+                state.break_duration = int(cmd["minutes"]) * 60
+                state.break_time_remaining = state.break_duration
+        else:
+            state.break_timer_running = False
+
+    elif action in ("BREAK_TOGGLE", "BREAK_TIMER_TOGGLE"):
         state.break_mode = True
-        state.break_timer_running = True
         state.timer_running = False
-    elif action == "BREAK_TOGGLE":
-        state.break_mode = True
         state.break_timer_running = not state.break_timer_running
-        state.timer_running = False
+
+    elif action == "BREAK_SET_DURATION":
+        duration = int(cmd.get("duration", 300))
+        state.break_duration = duration
+        state.break_time_remaining = duration
+        state.break_mode = True
+
     elif action == "BREAK_END":
         state.break_mode = False
         state.break_timer_running = False
 
-    # Score & Goal Event Trigger
+    # --- Score Adjustments & Goals ---
     elif action == "SCORE_ADJUST":
         team = cmd.get("team")
         delta = int(cmd.get("delta", 0))
@@ -304,7 +267,8 @@ async def handle_command(cmd: dict):
         if team == "home":
             state.home_score = max(0, state.home_score + delta)
             if delta > 0:
-                cur_time_str = format_game_time(state.period_duration - state.time_remaining)
+                elapsed = state.period_duration - state.time_remaining
+                cur_time_str = format_game_time(elapsed)
                 state.home_goals.append({
                     "player": scorer or "Tor",
                     "time": cur_time_str,
@@ -315,14 +279,15 @@ async def handle_command(cmd: dict):
                     "team": "home",
                     "team_name": state.home_name,
                     "scorer": scorer,
-                    "logo_url": state.home_logo,
+                    "team_logo": state.home_logo,
                     "color": state.home_color,
                     "text_color": state.home_text_color
                 })
         elif team == "away":
             state.away_score = max(0, state.away_score + delta)
             if delta > 0:
-                cur_time_str = format_game_time(state.period_duration - state.time_remaining)
+                elapsed = state.period_duration - state.time_remaining
+                cur_time_str = format_game_time(elapsed)
                 state.away_goals.append({
                     "player": scorer or "Tor",
                     "time": cur_time_str,
@@ -333,7 +298,7 @@ async def handle_command(cmd: dict):
                     "team": "away",
                     "team_name": state.away_name,
                     "scorer": scorer,
-                    "logo_url": state.away_logo,
+                    "team_logo": state.away_logo,
                     "color": state.away_color,
                     "text_color": state.away_text_color
                 })
@@ -346,7 +311,7 @@ async def handle_command(cmd: dict):
         elif team == "away" and 0 <= idx < len(state.away_goals):
             state.away_goals.pop(idx)
 
-    # Shots on Goal
+    # --- Shots on Goal ---
     elif action == "SHOTS_ADJUST":
         team = cmd.get("team")
         delta = int(cmd.get("delta", 0))
@@ -355,43 +320,34 @@ async def handle_command(cmd: dict):
         elif team == "away":
             state.away_shots = max(0, state.away_shots + delta)
 
-    # Period
+    # --- Period ---
     elif action == "PERIOD_SET":
         state.period = str(cmd.get("period", "1"))
 
-    # Team Names, Card Colors & Text Colors
-    elif action == "SET_TEAM_DETAILS":
-        if "home_name" in cmd: state.home_name = cmd["home_name"][:40]
-        if "away_name" in cmd: state.away_name = cmd["away_name"][:40]
-        if "home_color" in cmd: state.home_color = cmd["home_color"]
-        if "away_color" in cmd: state.away_color = cmd["away_color"]
-        if "home_text_color" in cmd: state.home_text_color = cmd["home_text_color"]
-        if "away_text_color" in cmd: state.away_text_color = cmd["away_text_color"]
+    # --- Team Settings ---
+    elif action in ("TEAM_SET", "SET_TEAM_DETAILS"):
+        team = cmd.get("team")
+        if team == "home":
+            if "name" in cmd: state.home_name = cmd["name"][:40]
+            if "logo" in cmd: state.home_logo = cmd["logo"]
+            if "color" in cmd: state.home_color = cmd["color"]
+            if "text_color" in cmd: state.home_text_color = cmd["text_color"]
+            if "players" in cmd: state.home_players = cmd["players"]
+        elif team == "away":
+            if "name" in cmd: state.away_name = cmd["name"][:40]
+            if "logo" in cmd: state.away_logo = cmd["logo"]
+            if "color" in cmd: state.away_color = cmd["color"]
+            if "text_color" in cmd: state.away_text_color = cmd["text_color"]
+            if "players" in cmd: state.away_players = cmd["players"]
+        else:
+            if "home_name" in cmd: state.home_name = cmd["home_name"][:40]
+            if "away_name" in cmd: state.away_name = cmd["away_name"][:40]
+            if "home_color" in cmd: state.home_color = cmd["home_color"]
+            if "away_color" in cmd: state.away_color = cmd["away_color"]
+            if "home_text_color" in cmd: state.home_text_color = cmd["home_text_color"]
+            if "away_text_color" in cmd: state.away_text_color = cmd["away_text_color"]
 
-    elif action == "ASSIGN_SAVED_TEAM":
-        team_slot = cmd.get("slot")
-        team_id = cmd.get("team_id")
-        teams = load_saved_teams()
-        selected = next((t for t in teams if t["id"] == team_id), None)
-        if selected:
-            if team_slot == "home":
-                state.home_name = selected["name"]
-                state.home_logo = selected.get("logo_url", "")
-                state.home_players = selected.get("players", [])
-                if "color" in selected and selected["color"]:
-                    state.home_color = selected["color"]
-                if "text_color" in selected and selected["text_color"]:
-                    state.home_text_color = selected["text_color"]
-            elif team_slot == "away":
-                state.away_name = selected["name"]
-                state.away_logo = selected.get("logo_url", "")
-                state.away_players = selected.get("players", [])
-                if "color" in selected and selected["color"]:
-                    state.away_color = selected["color"]
-                if "text_color" in selected and selected["text_color"]:
-                    state.away_text_color = selected["text_color"]
-
-    # Penalties
+    # --- Penalties ---
     elif action == "PENALTY_ADD":
         team = cmd.get("team")
         player = str(cmd.get("player", "00"))
@@ -410,11 +366,12 @@ async def handle_command(cmd: dict):
         elif team == "away" and 0 <= idx < len(state.away_penalties):
             state.away_penalties.pop(idx)
 
-    # Manual Buzzer
+    # --- Buzzer Trigger ---
     elif action == "BUZZER_TRIGGER":
         state.buzzer_trigger += 1
+        await manager.broadcast({"type": "buzzer"})
 
-    # Reset Game Entirely
+    # --- Game Reset ---
     elif action == "GAME_RESET":
         state.home_score = 0
         state.away_score = 0
@@ -430,10 +387,78 @@ async def handle_command(cmd: dict):
         state.home_penalties = []
         state.away_penalties = []
 
+    # Broadcast state to all clients (Control & Board)
     await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
 
+
 # ==========================================
-# REST API: TEAM & SPONSOR MANAGEMENT
+# BACKGROUND TIMER LOOP
+# ==========================================
+async def timer_loop():
+    while True:
+        await asyncio.sleep(1.0)
+        state_changed = False
+
+        # 1. Main Game Timer
+        if state.timer_running and not state.break_mode:
+            if state.time_remaining > 0:
+                state.time_remaining -= 1
+                state_changed = True
+
+                # Home penalties count down
+                expired_home = []
+                for p in state.home_penalties[:2]:
+                    if p["remaining_seconds"] > 0:
+                        p["remaining_seconds"] -= 1
+                    else:
+                        expired_home.append(p)
+                for p in expired_home:
+                    if p in state.home_penalties:
+                        state.home_penalties.remove(p)
+
+                # Away penalties count down
+                expired_away = []
+                for p in state.away_penalties[:2]:
+                    if p["remaining_seconds"] > 0:
+                        p["remaining_seconds"] -= 1
+                    else:
+                        expired_away.append(p)
+                for p in expired_away:
+                    if p in state.away_penalties:
+                        state.away_penalties.remove(p)
+
+                if state.time_remaining == 0:
+                    state.timer_running = False
+                    state.buzzer_trigger += 1
+                    await manager.broadcast({"type": "buzzer"})
+            else:
+                state.timer_running = False
+                state_changed = True
+
+        # 2. Break / Intermission Timer
+        if state.break_timer_running and state.break_mode:
+            if state.break_time_remaining > 0:
+                state.break_time_remaining -= 1
+                state_changed = True
+                if state.break_time_remaining == 0:
+                    state.break_timer_running = False
+                    state.buzzer_trigger += 1
+                    await manager.broadcast({"type": "buzzer"})
+            else:
+                state.break_timer_running = False
+                state_changed = True
+
+        if state_changed:
+            await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
+
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(timer_loop())
+
+
+# ==========================================
+# REST API: TEAMS & SPONSORS
 # ==========================================
 @app.get("/api/teams")
 async def get_teams():
@@ -441,38 +466,38 @@ async def get_teams():
 
 @app.post("/api/teams")
 async def save_or_update_team(
-    team_id: str = Form(None),
+    id: Optional[str] = Form(None),
+    team_id: Optional[str] = Form(None),
     name: str = Form(...),
     color: str = Form("#ef4444"),
     text_color: str = Form("#ffffff"),
     players_json: str = Form("[]"),
-    logo: UploadFile = File(None),
-    keep_logo: str = Form(None)
+    logo_file: Optional[UploadFile] = File(None),
+    logo: Optional[UploadFile] = File(None)
 ):
     teams = load_saved_teams()
-    logo_url = keep_logo or ""
+    target_id = id or team_id
 
     try:
         players = json.loads(players_json)
     except Exception:
         players = []
 
-    if team_id:
-        existing_idx = next((i for i, t in enumerate(teams) if t["id"] == team_id), None)
-        if existing_idx is None:
-            raise HTTPException(status_code=404, detail="Team nicht gefunden")
-        target_id = team_id
-        if not logo_url and teams[existing_idx].get("logo_url"):
-            logo_url = teams[existing_idx]["logo_url"]
+    logo_url = ""
+    if target_id:
+        existing = next((t for t in teams if t["id"] == target_id), None)
+        if existing:
+            logo_url = existing.get("logo_url", "")
     else:
         target_id = str(uuid.uuid4())[:8]
 
-    if logo and logo.filename:
-        ext = os.path.splitext(logo.filename)[1]
+    actual_file = logo_file or logo
+    if actual_file and actual_file.filename:
+        ext = os.path.splitext(actual_file.filename)[1]
         filename = f"{target_id}{ext}"
         filepath = os.path.join(UPLOAD_DIR, filename)
         with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(logo.file, buffer)
+            shutil.copyfileobj(actual_file.file, buffer)
         logo_url = f"/uploads/{filename}"
 
     team_entry = {
@@ -484,7 +509,8 @@ async def save_or_update_team(
         "players": players
     }
 
-    if team_id:
+    existing_idx = next((i for i, t in enumerate(teams) if t["id"] == target_id), None)
+    if existing_idx is not None:
         teams[existing_idx] = team_entry
     else:
         teams.append(team_entry)
@@ -498,7 +524,7 @@ async def delete_team(team_id: str):
     team = next((t for t in teams if t["id"] == team_id), None)
     if not team:
         raise HTTPException(status_code=404, detail="Team nicht gefunden")
-    
+
     if team.get("logo_url") and team["logo_url"].startswith("/uploads/"):
         filename = os.path.basename(team["logo_url"])
         path = os.path.join(UPLOAD_DIR, filename)
@@ -510,7 +536,6 @@ async def delete_team(team_id: str):
     save_teams_db(teams)
     return {"status": "ok"}
 
-# Sponsors API
 @app.get("/api/sponsors")
 async def get_sponsors():
     return load_sponsors()
@@ -518,24 +543,31 @@ async def get_sponsors():
 @app.post("/api/sponsors")
 async def add_sponsor(
     name: str = Form(""),
-    image: UploadFile = File(...)
+    file: Optional[UploadFile] = File(None),
+    image: Optional[UploadFile] = File(None)
 ):
+    actual_file = file or image
+    if not actual_file or not actual_file.filename:
+        raise HTTPException(status_code=400, detail="Keine Datei hochgeladen")
+
     sponsors = load_sponsors()
     sponsor_id = str(uuid.uuid4())[:8]
-    ext = os.path.splitext(image.filename)[1]
+    ext = os.path.splitext(actual_file.filename)[1]
     filename = f"sponsor_{sponsor_id}{ext}"
     filepath = os.path.join(SPONSORS_UPLOAD_DIR, filename)
+
     with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
-    
+        shutil.copyfileobj(actual_file.file, buffer)
+
+    url = f"/uploads/sponsors/{filename}"
     entry = {
         "id": sponsor_id,
         "name": name.strip() or f"Sponsor {len(sponsors)+1}",
-        "image_url": f"/uploads/sponsors/{filename}"
+        "url": url,
+        "image_url": url
     }
     sponsors.append(entry)
     save_sponsors_db(sponsors)
-    await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
     return JSONResponse(entry)
 
 @app.delete("/api/sponsors/{sponsor_id}")
@@ -543,19 +575,20 @@ async def delete_sponsor(sponsor_id: str):
     sponsors = load_sponsors()
     sp = next((s for s in sponsors if s["id"] == sponsor_id), None)
     if sp:
-        if sp.get("image_url") and sp["image_url"].startswith("/uploads/sponsors/"):
-            filename = os.path.basename(sp["image_url"])
+        url = sp.get("url") or sp.get("image_url", "")
+        if url.startswith("/uploads/sponsors/"):
+            filename = os.path.basename(url)
             path = os.path.join(SPONSORS_UPLOAD_DIR, filename)
             if os.path.exists(path):
                 try: os.remove(path)
                 except Exception: pass
         sponsors = [s for s in sponsors if s["id"] != sponsor_id]
         save_sponsors_db(sponsors)
-        await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
     return {"status": "ok"}
 
+
 # ==========================================
-# ROUTES
+# WEBSOCKET & PAGES ROUTING
 # ==========================================
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -568,18 +601,20 @@ async def websocket_endpoint(websocket: WebSocket):
                 cmd = json.loads(data)
                 await handle_command(cmd)
             except Exception as e:
-                logger.error(f"Error handling message: {e}")
+                logger.error(f"Error handling websocket command: {e}")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
 @app.get("/control", response_class=HTMLResponse)
 async def get_control_page():
-    with open(os.path.join(BASE_DIR, "templates/control.html"), "r", encoding="utf-8") as f:
+    path = os.path.join(BASE_DIR, "templates", "control.html")
+    with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 @app.get("/board", response_class=HTMLResponse)
 async def get_board_page():
-    with open(os.path.join(BASE_DIR, "templates/board.html"), "r", encoding="utf-8") as f:
+    path = os.path.join(BASE_DIR, "templates", "board.html")
+    with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 @app.get("/", response_class=HTMLResponse)
@@ -591,27 +626,23 @@ async def get_index_page():
         <meta charset="UTF-8">
         <title>Street Hockey Scoreboard Hub</title>
         <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-            h1 { font-size: 2.5rem; margin-bottom: 2rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 2px; }
-            .cards { display: flex; gap: 2rem; }
-            .card { background: #1e293b; padding: 2rem 3rem; border-radius: 1rem; text-align: center; text-decoration: none; color: white; border: 2px solid #334155; transition: all 0.2s; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-            .card:hover { transform: translateY(-5px); border-color: #38bdf8; box-shadow: 0 15px 35px rgba(56,189,248,0.2); }
-            .card h2 { margin: 0 0 0.5rem 0; font-size: 1.8rem; }
-            .card p { margin: 0; color: #94a3b8; }
+            body { font-family: sans-serif; background: #0b0f19; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            h1 { margin-bottom: 2rem; }
+            .links { display: flex; gap: 1.5rem; }
+            a { background: #2563eb; color: #fff; padding: 1rem 2rem; border-radius: 8px; text-decoration: none; font-size: 1.2rem; font-weight: bold; }
+            a:hover { background: #1d4ed8; }
         </style>
     </head>
     <body>
-        <h1>🏒 Street Hockey Scoreboard</h1>
-        <div class="cards">
-            <a class="card" href="/control" target="_blank">
-                <h2>🎛️ Bedienfeld</h2>
-                <p>Für den Zeitnehmer-Laptop (/control)</p>
-            </a>
-            <a class="card" href="/board" target="_blank">
-                <h2>📺 Beamer-Anzeige</h2>
-                <p>Fullscreen Großanzeige (/board)</p>
-            </a>
+        <h1>🏒 Street Hockey Scoreboard Hub</h1>
+        <div class="links">
+            <a href="/control" target="_blank">🎛️ Zeitnehmer Bedienfeld (/control)</a>
+            <a href="/board" target="_blank">📺 Großanzeige Scoreboard (/board)</a>
         </div>
     </body>
     </html>
     """
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
