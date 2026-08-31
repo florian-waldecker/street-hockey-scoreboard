@@ -504,10 +504,11 @@ async def handle_command(cmd: dict, ws: WebSocket | None = None):
             state.time_remaining = state.overtime_duration
     elif action == "TIMER_ADJUST":
         seconds = int(cmd.get("seconds", 0))
-        state.time_remaining = max(0, min(state.period_duration, state.time_remaining + seconds))
+        ceiling = _full_clock_for_period()   # overtime is shorter than a regular third
+        state.time_remaining = max(0, min(ceiling, state.time_remaining + seconds))
     elif action == "TIMER_SET_REMAINING":
         seconds = int(cmd.get("seconds", 0))
-        state.time_remaining = max(0, min(state.period_duration, seconds))
+        state.time_remaining = max(0, min(_full_clock_for_period(), seconds))
         state.timer_running = False
 
     # --- Break / Intermission Timer ---

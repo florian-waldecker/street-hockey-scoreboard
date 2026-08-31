@@ -201,6 +201,30 @@ class TestTimer:
         cmd(app, "TIMER_RESET")
         assert app.state.time_remaining == 300
 
+    def test_timer_adjust_is_capped_at_the_overtime_length_in_ot(self, app_module):
+        app = app_module
+        app.state.period = "OT"
+        app.state.period_duration = 900
+        app.state.overtime_duration = 300
+        app.state.time_remaining = 290
+        cmd(app, "TIMER_ADJUST", seconds=120)     # would be 410, over the 5-min OT clock
+        assert app.state.time_remaining == 300
+
+    def test_timer_set_remaining_is_capped_at_the_overtime_length_in_ot(self, app_module):
+        app = app_module
+        app.state.period = "OT"
+        app.state.overtime_duration = 300
+        cmd(app, "TIMER_SET_REMAINING", seconds=600)
+        assert app.state.time_remaining == 300
+
+    def test_timer_adjust_regular_period_unchanged(self, app_module):
+        app = app_module
+        app.state.period = "2"
+        app.state.period_duration = 900
+        app.state.time_remaining = 800
+        cmd(app, "TIMER_ADJUST", seconds=-50)
+        assert app.state.time_remaining == 750
+
     def test_period_set_to_ot_loads_overtime_clock(self, app_module):
         app = app_module
         app.state.overtime_duration = 240
