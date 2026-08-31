@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import mimetypes
 import os
 import re
 import uuid
@@ -23,6 +24,13 @@ from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("scoreboard")
+
+# Some Windows installs map .js to text/plain in the registry; with our
+# X-Content-Type-Options: nosniff header the browser then refuses to run
+# /static/*.js. Pin the types we serve.
+mimetypes.add_type("text/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("font/woff2", ".woff2")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")

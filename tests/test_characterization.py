@@ -285,6 +285,27 @@ class TestHttp:
         assert "<!DOCTYPE html>" in client.get("/board").text or "<!doctype html>" in client.get("/board").text.lower()
         assert client.get("/control").status_code == 200
 
+    @pytest.mark.parametrize("page,css,js", [
+        ("/board", "/static/board.css", "/static/board.js"),
+        ("/control", "/static/control.css", "/static/control.js"),
+    ])
+    def test_pages_link_their_extracted_assets(self, client, page, css, js):
+        body = client.get(page).text
+        assert css in body and js in body
+        assert "<style>" not in body and "<script>" not in body  # nothing left inline
+
+    @pytest.mark.parametrize("asset,ctype", [
+        ("/static/board.css", "text/css"),
+        ("/static/board.js", "text/javascript"),
+        ("/static/control.css", "text/css"),
+        ("/static/control.js", "text/javascript"),
+    ])
+    def test_static_assets_serve_with_a_script_safe_mime(self, client, asset, ctype):
+        # nosniff is set globally, so a .js served as text/plain would not execute.
+        r = client.get(asset)
+        assert r.status_code == 200
+        assert r.headers["content-type"].split(";")[0] == ctype
+
     def test_dropped_board_routes_are_gone(self, client):
         assert client.get("/board2").status_code == 404
         assert client.get("/board3").status_code == 404
