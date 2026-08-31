@@ -3,484 +3,763 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scoreboard Display | Großanzeige</title>
+    <title>Scoreboard Display v2 | Großanzeige</title>
     <style>
+        /* ===== bundled fonts (offline) - broadcast condensed grotesque ===== */
+        @font-face {
+            font-family: 'Oswald';
+            src: url('/static/fonts/oswald-latin.woff2') format('woff2');
+            font-weight: 200 700; font-style: normal; font-display: swap;
+            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2074,
+                U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        }
+        @font-face {
+            font-family: 'Oswald';
+            src: url('/static/fonts/oswald-latin-ext.woff2') format('woff2');
+            font-weight: 200 700; font-style: normal; font-display: swap;
+            unicode-range: U+0100-02BA, U+1E00-1EFF, U+2020, U+20A0-20AB,
+                U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+        }
+        @font-face {
+            font-family: 'Saira Condensed';
+            src: url('/static/fonts/saira-cond-600-latin.woff2') format('woff2');
+            font-weight: 600; font-style: normal; font-display: swap;
+            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2074,
+                U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        }
+        @font-face {
+            font-family: 'Saira Condensed';
+            src: url('/static/fonts/saira-cond-600-latin-ext.woff2') format('woff2');
+            font-weight: 600; font-style: normal; font-display: swap;
+            unicode-range: U+0100-02BA, U+1E00-1EFF, U+2020, U+20A0-20AB,
+                U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+        }
+        @font-face {
+            font-family: 'Saira Condensed';
+            src: url('/static/fonts/saira-cond-700-latin.woff2') format('woff2');
+            font-weight: 700; font-style: normal; font-display: swap;
+            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2074,
+                U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        }
+        @font-face {
+            font-family: 'Saira Condensed';
+            src: url('/static/fonts/saira-cond-700-latin-ext.woff2') format('woff2');
+            font-weight: 700; font-style: normal; font-display: swap;
+            unicode-range: U+0100-02BA, U+1E00-1EFF, U+2020, U+20A0-20AB,
+                U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+        }
+
         :root {
-            --bg-dark: #070a12;
+            --bg-dark: #05090f;
             --surface-bg: #111726;
             --surface-card: #182238;
             --border: #23314e;
-            --accent-home: #ef4444;
-            --accent-away: #00d2ff;
+            --accent-home: #2b83ff;
+            --accent-away: #f5c518;
             --text-main: #ffffff;
             --text-dim: #8fa0be;
+            --gold: #f5c518;
+            --divider: rgba(255, 255, 255, 0.09);
             --glow-gold: 0 0 35px rgba(250, 204, 21, 0.45);
+            --cond: 'Oswald', 'Bahnschrift', 'Arial Narrow', sans-serif;
+            --num: 'Saira Condensed', 'Oswald', 'Bahnschrift', sans-serif;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
         [hidden] { display: none !important; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: var(--cond);
+            font-weight: 400;
             background-color: var(--bg-dark);
             color: var(--text-main);
             height: 100vh;
             width: 100vw;
             overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            padding: 1.5vw;
         }
 
-        /* FULLSCREEN LIVE SCOREBOARD LAYOUT */
+        /* ================= LIVE SCOREBOARD v2 - full-bleed broadcast graphic ================= */
         #matchView {
-            display: grid;
-            grid-template-rows: 1fr;
+            position: relative;
+            z-index: 1;
             height: 100%;
             width: 100%;
+            /* textured arena backdrop */
+            background:
+                radial-gradient(130% 80% at 50% -12%, #16273c 0%, #0b1523 46%, #05090f 100%);
         }
 
-        /* ===== ONE UNIFIED SCOREBOARD PANEL =====
-           A single surface. Continuous gradient: home colour (left) -> neutral centre
-           -> away colour (right). Two fixed vertical zones so the score never moves:
-           .panel-top (identities + scores + clock) and .panel-band (events | sponsor | events). */
-        .board-panel {
+        .sb {
+            /* one slant for every parallelogram on the board: 42px over the 31vh
+               top bar == this ratio. Each bar derives its own skew from its own
+               height * --slant-ratio, so every angle comes out identical. */
+            --slant-ratio: 0.1254;
+            --bar: 5px;   /* team-colour edge-line thickness (timebox & sponsor) */
+            position: relative;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 0.6vh 0;   /* the top & bottom panels float clear of the screen edges */
+        }
+
+        /* bright light-bar along the top & bottom edge of every panel -
+           only as wide as that panel's parallelograms, offset to follow the
+           slanted top/bottom edges. */
+        .sb-topbar::before,
+        .sb-topbar::after,
+        .sb-midbar::before,
+        .sb-midbar::after,
+        .sb-penbar::before,
+        .sb-penbar::after {
+            content: "";
+            position: absolute;
+            height: 0.42vh; min-height: 3px;
+            z-index: 6;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                var(--home-color, var(--accent-home)) 14%,
+                #ffffff 50%,
+                var(--away-color, var(--accent-away)) 86%,
+                transparent 100%);
+            box-shadow: 0 0 16px 2px rgba(255, 255, 255, 0.14);
+        }
+        .sb-topbar::before { top: -1.5px;    left: calc(2.4vw + var(--skew));  right: 2.4vw; }
+        .sb-topbar::after  { bottom: -1.5px; left: 2.4vw; right: calc(2.4vw + var(--skew)); }
+        .sb-midbar::before { top: calc(1.5vh - 1.5px); left: calc(2.4vw + var(--mskew)); right: 2.4vw; }
+        .sb-midbar::after  { bottom: calc(1.5vh - 1.5px); left: 2.4vw; right: calc(2.4vw + var(--mskew)); }
+        .sb-penbar::before { top: calc(1.4vh - 1.5px); left: calc(2.4vw + var(--pskew)); right: 2.4vw; }
+        .sb-penbar::after  { bottom: calc(1.4vh - 1.5px); left: 2.4vw; right: calc(2.4vw + var(--pskew)); }
+        .sb-glow {
+            position: absolute;
+            left: 0; right: 0; bottom: -7vh;
+            height: 14vh;
+            z-index: 5;
+            pointer-events: none;
+            filter: blur(16px);
+            background:
+                radial-gradient(48% 100% at 33% 100%, color-mix(in srgb, var(--home-color, var(--accent-home)) 45%, transparent), transparent 72%),
+                radial-gradient(48% 100% at 67% 100%, color-mix(in srgb, var(--away-color, var(--accent-away)) 38%, transparent), transparent 72%);
+        }
+
+        /* ------------------------------ TOP PANEL ------------------------------ */
+        .sb-topbar {
             --home-color: var(--accent-home);
             --away-color: var(--accent-away);
             position: relative;
-            overflow: hidden;
-            height: 100%;
-            border: 2px solid var(--border);
-            border-radius: 22px;
+            z-index: 3;
+            flex: 0 0 28vh;
             display: flex;
-            flex-direction: column;
-            background:
-                var(--surface-bg)
-                linear-gradient(
-                    90deg,
-                    color-mix(in srgb, var(--home-color) 60%, #05070d) 0%,
-                    color-mix(in srgb, var(--home-color) 26%, var(--surface-bg)) 20%,
-                    var(--surface-bg) 40%,
-                    var(--surface-bg) 60%,
-                    color-mix(in srgb, var(--away-color) 26%, var(--surface-bg)) 80%,
-                    color-mix(in srgb, var(--away-color) 60%, #05070d) 100%
-                );
+            align-items: stretch;
+            padding: 0 2.4vw;   /* float clear of the screen edges, like the other panels */
         }
-        /* crisp colour spines on the outer edges */
-        .board-panel::before,
-        .board-panel::after {
+
+        /* the identity ends of the panel: a plain parallelogram fill, slanted
+           outer edge, NO edge line */
+        .sb-team {
+            position: relative;
+            flex: 1 1 0;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 1.6vw;
+            padding: 0 1.4vw 0 1.9vw;
+            z-index: 2;
+        }
+        .sb-team::before {
             content: "";
             position: absolute;
-            top: 0; bottom: 0;
-            width: 10px;
-            z-index: 3;
+            inset: 0;
+            z-index: -1;
+            background: linear-gradient(180deg, #0e2137 0%, #0a1728 55%, #081420 100%);
+            clip-path: polygon(var(--skew) 0, 100% 0, calc(100% - var(--skew)) 100%, 0 100%);
         }
-        .board-panel::before { left: 0; background: var(--home-color); }
-        .board-panel::after  { right: 0; background: var(--away-color); }
-        .board-panel > * { position: relative; z-index: 1; }
+        /* the fill reaches under the score box so the diagonal cut tessellates,
+           without pulling the score box over the team name */
+        .sb-team--home::before { inset: 0 calc(var(--skew) * -1) 0 0; }
+        .sb-team--away::before { inset: 0 0 0 calc(var(--skew) * -1); }
+        .sb-team--home { padding-right: 2.6vw; }
+        .sb-team--away {
+            flex-direction: row-reverse;
+            padding: 0 1.9vw 0 2.6vw;
+        }
 
-        /* CENTER CLOCK STACK - between the two scores, in the same dark box as the score */
-        .center-stack {
+        .sb-logo-cell {
+            position: relative;
+            flex: 0 0 auto;
+            align-self: stretch;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2.6vh 1.4vw;
+        }
+        .sb-logo-cell::after {
+            content: "";
+            position: absolute;
+            top: 16%; bottom: 16%;
+            width: 1px;
+            background: var(--divider);
+        }
+        .sb-team--home .sb-logo-cell::after { right: 0; }
+        .sb-team--away .sb-logo-cell::after { left: 0; }
+
+        .sb-logo {
+            width: 6vw;
+            height: 6vw;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: none;
+            filter: drop-shadow(0 3px 12px rgba(0, 0, 0, 0.55));
+        }
+        .sb-logo.has-logo { display: block; }
+
+        .sb-name-wrap {
+            min-width: 0;
+            width: fit-content;
+            max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1vh;
+        }
+        .sb-team--away .sb-name-wrap { align-items: flex-end; }
+
+        .sb-name {
+            font-family: var(--cond);
+            font-weight: 700;
+            font-size: 2.15vw;
+            line-height: 0.98;
+            text-transform: uppercase;
+            letter-spacing: 0.015em;
+            color: #fff;
+            overflow-wrap: normal;
+            word-break: normal;
+            hyphens: none;
+        }
+        .sb-team--away .sb-name { text-align: right; }
+
+        .sb-name-underline {
+            width: 100%;
+            height: 0.42vh;
+            min-height: 3px;
+            background: linear-gradient(90deg,
+                color-mix(in srgb, var(--home-color) 62%, #cfe0ff),
+                var(--home-color));
+            box-shadow: 0 0 12px color-mix(in srgb, var(--home-color) 80%, transparent);
+        }
+        .sb-team--away .sb-name-underline {
+            background: linear-gradient(270deg,
+                color-mix(in srgb, var(--away-color) 62%, #fff4c2),
+                var(--away-color));
+            box-shadow: 0 0 12px color-mix(in srgb, var(--away-color) 80%, transparent);
+        }
+
+        .sb-timeout {
+            display: none;   /* timeout tracking lives on the control desk */
+            align-items: center;
+            gap: 0.4vw;
+            font-family: var(--cond);
+            font-size: 0.85vw;
+            font-weight: 500;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #8aa;
+        }
+        .sb-timeout::before {
+            content: "";
+            width: 0.5vw; height: 0.5vw;
+            border-radius: 50%;
+            background: #7c8aa5;
+        }
+        .sb-timeout .to-label { text-decoration: line-through; }
+
+        /* ============ DIAGONAL SEGMENTS: score | clock | score ============
+           Tuned for 1920x1080. Every segment is the SAME parallelogram, edges
+           slanted by --skew, boxes overlapping neighbours by --skew so the cuts
+           tessellate. --bar is the timebox edge-line thickness; the scorebox
+           outer edge-line is half that. */
+        .sb-topbar { --skew: 42px; --bar: 5px; }
+
+        .sb-scorebox {
+            position: relative;
+            flex: 0 0 auto;
+            width: 12vw;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 0.6vh;
-            min-width: 15vw;
-            background: rgba(0, 0, 0, 0.35);
-            border-radius: 12px;
-            padding: 0.8vh 1.6vw;
-            /* faint glow bleeding to each side in the respective team's colour */
-            box-shadow:
-                -12px 0 30px -12px color-mix(in srgb, var(--home-color, var(--accent-home)) 55%, transparent),
-                 12px 0 30px -12px color-mix(in srgb, var(--away-color, var(--accent-away)) 55%, transparent);
+            gap: 0.2vh;
+            z-index: 3;
         }
-
-        .period-box {
-            text-align: center;
-            font-size: 1.6vw;
-            font-weight: 900;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #facc15;
+        .sb-scorebox > * { position: relative; z-index: 2; }
+        /* Only the OUTER slanted edge carries a line: plain team colour, half the
+           thickness of the timebox line (--bar/2). The inner edge (toward the
+           clock) carries nothing - the timebox's own edge line sits there. */
+        .sb-scorebox {
+            --sb-line: calc(var(--bar) / 2);
         }
-
-        .main-clock {
-            text-align: center;
-            font-size: 5.6vw;
-            font-weight: 900;
-            font-variant-numeric: tabular-nums;
-            color: #facc15;
-            text-shadow: var(--glow-gold);
-            line-height: 1;
-        }
-
-        .clock-caption {
-            font-size: 1vw;
-            font-weight: 800;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: var(--text-dim);
-        }
-
-        /* ---- TOP ZONE: identities, scores, clock. Fills the space above the band and
-               centres its content, so the score sits at one locked vertical position. ---- */
-        /* 3 columns: [home side | clock | away side]. Inside each side the score is
-           packed against the clock and the identity flows outward - so the score sits
-           right next to the clock without ever overlapping it. */
-        .panel-top {
-            flex: 1 1 auto;
-            min-height: 0;
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-            column-gap: 2vw;
-            padding: 2vh 2vw 0;
-        }
-
-        .side {
-            display: flex;
-            align-items: center;
-            gap: 1.5vw;
-            min-width: 0;
-        }
-        .side-home { justify-content: flex-end; }
-        .side-away { flex-direction: row-reverse; justify-content: flex-end; }
-
-        .team-identity {
-            display: flex;
-            align-items: center;
-            gap: 1.2vw;
-            min-width: 0;
-            flex-shrink: 1;
-        }
-        .side-away .team-identity { flex-direction: row-reverse; text-align: right; }
-
-        .team-logo {
-            width: 6vw;
-            height: 6vw;
-            object-fit: contain;
-            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
-            display: none;
-            flex-shrink: 0;
-        }
-        .team-logo.has-logo { display: block; }
-
-        /* name + status flags stacked next to the logo */
-        .team-headline {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.6vh;
-            min-width: 0;
-        }
-        .side-away .team-headline { align-items: flex-end; }
-
-        .team-name {
-            font-size: 2.15vw;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            line-height: 1.1;
-            overflow-wrap: break-word;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.55);
-        }
-
-        /* Time-out status chip - sits under the team name */
-        .team-timeout {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.45vw;
-            font-size: 0.8vw;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            color: var(--text-dim);
-            border: 1px solid var(--border);
-            border-radius: 5px;
-            padding: 0.25vh 0.7vw;
-            white-space: nowrap;
-        }
-        .side-away .team-timeout { flex-direction: row-reverse; }
-        .team-timeout::before {
+        .sb-scorebox::after,
+        .sb-scorebox::before {
             content: "";
-            width: 0.5vw;
-            height: 0.5vw;
-            border-radius: 50%;
-            background: #34d399;   /* green = time-out still available */
-            flex-shrink: 0;
+            position: absolute;
+            inset: 0;
         }
-        .team-timeout.used {
-            color: #94a3b8;
+        .sb-scorebox::after  {   /* team-colour slab, full parallelogram */
+            z-index: 0;
+            clip-path: polygon(var(--skew) 0, 100% 0, calc(100% - var(--skew)) 100%, 0 100%);
         }
-        .team-timeout.used::before { background: #94a3b8; }
-        .team-timeout.used .to-label { text-decoration: line-through; }
+        .sb-scorebox::before {   /* dark fill on top */
+            z-index: 1;
+            background: linear-gradient(180deg, #16283e, #0c1a2c);
+        }
 
-        /* the score sits in the same dark box as the shots row - the box just grows
-           downward to take in the shots row when it is switched on */
-        .team-score-wrap {
+        .sb-scorebox--home { margin-right: calc(var(--skew) * -1); padding: 0 34px 0 12px; }
+        .sb-scorebox--home::after { background: var(--home-color); }
+        .sb-scorebox--home::before {   /* inset --sb-line from the LEFT (outer) edge, flush on the RIGHT (inner) */
+            clip-path: polygon(
+                calc(var(--skew) + var(--sb-line)) 0,
+                100% 0,
+                calc(100% - var(--skew)) 100%,
+                var(--sb-line) 100%);
+        }
+
+        .sb-scorebox--away { margin-left: calc(var(--skew) * -1); padding: 0 12px 0 34px; }
+        .sb-scorebox--away::after { background: var(--away-color); }
+        .sb-scorebox--away::before {   /* inset --sb-line from the RIGHT (outer) edge, flush on the LEFT (inner) */
+            clip-path: polygon(
+                var(--skew) 0,
+                calc(100% - var(--sb-line)) 0,
+                calc(100% - var(--skew) - var(--sb-line)) 100%,
+                0 100%);
+        }
+
+        .sb-score-num {
+            font-family: var(--num);
+            font-weight: 700;
+            font-size: 16.5vh;
+            line-height: 1;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+            /* dark halo keeps the number legible even over a bright team-colour wash */
+            text-shadow:
+                0 0 6px rgba(0, 0, 0, 0.85),
+                0 0 20px rgba(0, 0, 0, 0.7),
+                0 0.5vh 2.4vh rgba(0, 0, 0, 0.55);
+        }
+        .sb-sog {
+            display: flex;
+            align-items: baseline;
+            gap: 0.4vw;
+            font-family: var(--cond);
+            font-size: 0.85vw;
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+        .sb-sog .stats-val { color: #fff; font-weight: 700; font-size: 1.05vw; }
+
+        /* ---- centre timing module: gold parallelogram, RESTZEIT drops below ---- */
+        .sb-timebox {
             position: relative;
-            flex-shrink: 0;
+            flex: 0 0 auto;
+            width: 20vw;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 4;
+        }
+        .sb-timebox::after,
+        .sb-timebox::before {
+            content: "";
+            position: absolute;
+            top: 0; bottom: 0; left: 0; right: 0;
+        }
+        /* a line on the LEFT slanted edge (home colour) and the RIGHT slanted edge
+           (away colour) only - nothing on top/bottom. Plain colour, no glow. */
+        .sb-timebox::after {
+            z-index: 0;
+            background: linear-gradient(90deg, var(--home-color) 50%, var(--away-color) 50%);
+            clip-path: polygon(var(--skew) 0, 100% 0, calc(100% - var(--skew)) 100%, 0 100%);
+        }
+        .sb-timebox::before {
+            z-index: 1;
+            background: linear-gradient(180deg, #0c1c2f, #060f1c);
+            clip-path: polygon(
+                calc(var(--skew) + var(--bar)) 0,
+                calc(100% - var(--bar)) 0,
+                calc(100% - var(--skew) - var(--bar)) 100%,
+                var(--bar) 100%);
+        }
+        .sb-timebox-inner {
+            position: relative;
+            z-index: 3;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 0.6vh;
-            background: rgba(0, 0, 0, 0.35);
-            border-radius: 12px;
-            padding: 0.8vh 1.2vw;
-        }
-        /* faint glow around each score box in that team's colour */
-        .side-home .team-score-wrap {
-            box-shadow: 0 0 28px -6px color-mix(in srgb, var(--home-color, var(--accent-home)) 55%, transparent);
-        }
-        .side-away .team-score-wrap {
-            box-shadow: 0 0 28px -6px color-mix(in srgb, var(--away-color, var(--accent-away)) 55%, transparent);
+            gap: 0.45vh;
+            transform: translateY(0.2vh);
         }
 
-        .team-score {
-            font-size: min(9.5vw, 27vh);
-            font-weight: 900;
+        .sb-period {
+            font-family: var(--cond);
+            font-weight: 600;
+            font-size: 1.5vw;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            color: #eef3fa;
+            padding-left: 0.24em;
+        }
+        .sb-dots {
+            display: flex;
+            align-items: center;
+            gap: 0.7vw;
+            margin: 0.4vh 0;
+        }
+        .sb-dot {
+            width: 0.7vw;
+            height: 0.7vw;
+            border-radius: 50%;
+            background: #42536e;
+        }
+        .sb-dot.done { background: #64789a; }
+        .sb-dot.active {
+            background: var(--gold);
+            box-shadow: 0 0 13px 2px color-mix(in srgb, var(--gold) 75%, transparent);
+        }
+        .sb-dot.ot { width: 1.5vw; border-radius: 3px; }
+
+        .sb-clock {
+            font-family: var(--num);
+            font-weight: 700;
+            font-size: 9.6vh;
+            line-height: 0.9;
+            color: #fff;
             font-variant-numeric: tabular-nums;
-            line-height: 0.95;
-            text-shadow: 0 8px 30px rgba(0,0,0,0.6);
+        }
+        .sb-clock-rule {
+            width: 82%;
+            height: 2px;
+            margin: 0.5vh 0 0.4vh;
+            background: linear-gradient(90deg, transparent, var(--gold) 12%, var(--gold) 88%, transparent);
+            box-shadow: 0 0 11px color-mix(in srgb, var(--gold) 60%, transparent);
+        }
+        .sb-clock-caption {
+            font-family: var(--cond);
+            font-weight: 600;
+            font-size: 1.15vw;
+            letter-spacing: 0.4em;
+            text-transform: uppercase;
+            color: var(--gold);
+            padding-left: 0.4em;
         }
 
-        .team-stats-row {
+        /* ------------------------------ EMPTY NET ------------------------------ */
+        .sb-en-row {
+            position: relative;
+            height: 0;
+            z-index: 7;
+        }
+        .sb-en {
+            position: absolute;
+            top: -0.4vh;
             display: inline-flex;
             align-items: center;
             gap: 0.7vw;
-            width: 100%;
-            justify-content: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.14);
-            padding-top: 0.6vh;
-            font-size: 0.95vw;
-            font-weight: 700;
-            color: var(--text-dim);
-        }
-        .stats-val { color: #fff; font-weight: 900; }
-
-        /* ---- BOTTOM BAND: penalties | sponsor | goal scorers. Height ALWAYS reserved. ---- */
-        .panel-band {
-            position: relative;
-            flex: 0 0 33vh;
-            display: grid;
-            grid-template-columns: 1fr 0fr 1fr;
-            align-items: stretch;
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
-            background: linear-gradient(180deg, rgba(3, 5, 11, 0.08), rgba(3, 5, 11, 0.28));
-        }
-        .board-panel.has-sponsor .panel-band {
-            grid-template-columns: 1fr minmax(22vw, 26vw) 1fr;
-        }
-
-        .events-col {
-            position: relative;
-            min-width: 0;
-            padding: 1.7vh 2.4vw;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;   /* everything anchored to the bottom, next to the Strafen */
-            gap: 1vh;
-            overflow: visible;
-        }
-        /* black -> transparent wash, anchored on the outer edge of each side */
-        .events-col-home {
-            background: linear-gradient(90deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 92%);
-        }
-        .events-col-away {
-            align-items: flex-end;
-            background: linear-gradient(270deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 92%);
-        }
-
-        .sponsor-slot {
-            position: relative;
-            overflow: hidden;
-            z-index: 2;   /* stays above any Strafen chips that reach toward the centre */
-        }
-        .board-panel:not(.has-sponsor) .sponsor-slot { display: none; }
-
-        /* explicit width/height are required for object-fit to apply to an <img> */
-        .board-sponsor-slide {
-            position: absolute;
-            left: 4%;
-            top: 2.5%;
-            width: 92%;
-            height: 88%;
-            object-fit: contain;
-            object-position: center;
-            opacity: 0;
-            transform: scale(0.95);
-            transition: opacity 0.9s ease, transform 0.9s ease;
-            /* soft aura (scaled to this smaller slot) so dark logos stay visible */
-            filter:
-                drop-shadow(0 0 9px rgba(255, 255, 255, 0.12))
-                drop-shadow(0 0 22px rgba(255, 255, 255, 0.07))
-                drop-shadow(0 8px 20px rgba(0, 0, 0, 0.55));
-        }
-        .board-sponsor-slide.visible {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        .events-section {
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-            width: 100%;
-        }
-        .events-col-away .events-section { align-items: flex-end; }
-
-        .events-label {
-            display: flex;
-            align-items: center;
-            gap: 0.55vw;
-            font-size: 1.05vw;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            color: var(--text-dim);
-            margin-bottom: 0.7vh;
-        }
-        .events-col-away .events-label { flex-direction: row-reverse; }
-        .events-label::before {
-            content: "";
-            width: 0.8vw;
-            height: 0.8vw;
-            border-radius: 2px;
-            flex-shrink: 0;
-        }
-        .events-section--penalty .events-label::before { background: #f87171; }
-        .events-section--goal .events-label::before { background: #34d399; }
-
-        .events-viewport {
-            overflow: hidden;
-        }
-        .events-track {
-            display: flex;
-            gap: 0.8vh 0.8vw;
-        }
-        .events-col-away .events-track { justify-content: flex-end; }
-
-        /* ---- Torschützen: vertical stack of green chips - starts just above the Strafen,
-               grows upward as more scorers come; a slideshow once there are more than fit ---- */
-        .events-section--goal .events-track {
-            flex-direction: column;
-            flex-wrap: nowrap;
-            align-items: flex-start;
-            flex-shrink: 0;
-            transition: transform 0.6s ease;
-        }
-        .events-col-away .events-section--goal .events-track { align-items: flex-end; }
-        .events-section--goal .event-row { height: 3.5vh; }
-        .events-section--goal .events-viewport {
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;   /* few chips sit at the bottom; the block grows up */
-            max-height: calc(5 * 3.5vh + 4 * 0.8vh);   /* five chips, then it pages as a slideshow */
-        }
-
-        /* ---- Strafen: one single row, never wrapping, pinned to the bottom, reaching to the centre ---- */
-        .events-section--penalty {
-            width: 118%;
-        }
-        .events-col-away .events-section--penalty { align-self: flex-end; }
-        .events-section--penalty .events-track { flex-flow: row nowrap; align-content: flex-start; }
-        .events-section--penalty .events-viewport { max-height: none; overflow: visible; }
-
-        .event-row {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.55vw;
-            padding: 0.5vh 1vw;
-            border-radius: 8px;
-            font-size: 1.17vw;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-        .events-col-away .event-row { flex-direction: row-reverse; }
-
-        .events-section--goal .event-row {
-            background: rgba(52, 211, 153, 0.15);
-            border: 1px solid rgba(52, 211, 153, 0.45);
-        }
-        .events-section--penalty .event-row {
-            background: rgba(248, 113, 113, 0.16);
-            border: 1px solid rgba(248, 113, 113, 0.45);
-        }
-
-        .event-time {
-            font-variant-numeric: tabular-nums;
-            font-weight: 900;
-            flex-shrink: 0;
-        }
-        .events-section--goal .event-time { color: #34d399; }
-        .events-section--penalty .event-time { color: #f87171; }
-
-        .event-player {
-            color: #fff;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* EMPTY-NET: a tab on the top edge of the bottom band, starting flush at the
-           outer edge and fading from red to transparent toward the centre */
-        .en-flag {
-            position: absolute;
-            bottom: 100%;
-            margin-bottom: -0.4vh;      /* overlap the band's top line so it reads as attached */
-            z-index: 6;
-            display: flex;
-            align-items: center;
-            gap: 0.6vw;
-            min-width: 16vw;
-            padding: 0.9vh 2vw;
-            font-size: 1.3vw;
-            font-weight: 900;
-            letter-spacing: 3px;
+            padding: 0.85vh 1.5vw;
+            border-radius: 3px;
+            background: linear-gradient(180deg, #d03828, #9d1f13);
+            font-family: var(--cond);
+            font-weight: 600;
+            font-size: 1.15vw;
+            letter-spacing: 0.13em;
             text-transform: uppercase;
             color: #fff;
-            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-            white-space: nowrap;
-            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
-            /* resting state: tucked down behind the band, invisible - slides up on activate */
+            box-shadow: 0 7px 20px -5px rgba(207, 54, 38, 0.7);
             opacity: 0;
-            transform: translateY(60%);
+            transform: translateY(-25%) scale(0.96);
             pointer-events: none;
-            transition: opacity 0.4s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+            transition: opacity 0.3s ease, transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        .en-flag.active {
-            opacity: 1;
-            transform: translateY(0);
-            animation: enFlagGlow 2.4s ease-in-out 0.7s infinite;
-        }
-        .en-flag::before {
+        .sb-en::before {
             content: "";
-            width: 0.6vw;
-            height: 0.6vw;
+            width: 0.8vw; height: 0.8vw;
             border-radius: 50%;
             background: #fff;
             flex-shrink: 0;
         }
-        .en-flag-home {
-            left: 0;
-            justify-content: flex-start;
-            border-radius: 0 10px 0 0;
-            background: linear-gradient(90deg, #dc2626 0%, rgba(220, 38, 38, 0.72) 32%, rgba(220, 38, 38, 0) 100%);
+        .sb-en--home { left: 2.4vw; }
+        .sb-en--away { right: 2.4vw; }
+        .sb-en.active {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            animation: enPulse 2.4s ease-in-out 0.6s infinite;
         }
-        .en-flag-away {
-            right: 0;
-            justify-content: flex-end;
-            flex-direction: row-reverse;
-            border-radius: 10px 0 0 0;
-            background: linear-gradient(270deg, #dc2626 0%, rgba(220, 38, 38, 0.72) 32%, rgba(220, 38, 38, 0) 100%);
-        }
-        @keyframes enFlagGlow {
-            0%, 100% { filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45)); }
-            50%      { filter: drop-shadow(0 0 13px rgba(248, 113, 113, 0.5)); }
+        @keyframes enPulse {
+            0%, 100% { box-shadow: 0 7px 20px -5px rgba(207, 54, 38, 0.7); }
+            50%      { box-shadow: 0 7px 26px -3px rgba(207, 54, 38, 0.95); }
         }
 
+        /* ------------------------------ LOWER PANEL ------------------------------
+           A flex column of two bars: the MIDDLE BAR (goal scorers | sponsor |
+           goal scorers, each a parallelogram; the scorer segments take a bigger
+           share than the sponsor) and the PENALTY BAR below it. */
+        .sb-lower {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+            background: linear-gradient(180deg, rgba(9, 16, 27, 0.86), rgba(6, 11, 19, 0.92));
+        }
+        .sb-lower::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.05;
+            mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+        }
+        .sb-lower::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(107deg, transparent 38%, rgba(255, 255, 255, 0.028) 50%, transparent 62%),
+                radial-gradient(120% 130% at 50% 38%, transparent 52%, rgba(0, 0, 0, 0.5));
+        }
+
+        /* ---- MIDDLE PANEL: three parallelogram segments ---- */
+        .sb-midbar {
+            --ph: 40vh;                                      /* parallelogram height */
+            --mskew: calc(var(--ph) * var(--slant-ratio));   /* same angle as the top bar */
+            position: relative;
+            z-index: 1;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: stretch;
+            padding: 1.5vh 2.4vw;   /* the parallelograms float clear of the screen edges */
+        }
+
+        .sb-mid {
+            position: relative;
+            height: var(--ph);
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .sb-mid > * { position: relative; z-index: 2; }
+        .sb-mid::after,
+        .sb-mid::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+        }
+        /* scorer segments: plain parallelogram fill, NO edge lines on any side */
+        .sb-mid--goal::after { display: none; }
+        .sb-mid--goal::before {
+            z-index: 1;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 22%),
+                linear-gradient(180deg, #131f31, #0c1523);
+            clip-path: polygon(var(--mskew) 0, 100% 0, calc(100% - var(--mskew)) 100%, 0 100%);
+        }
+
+        .sb-mid--goal    { flex: 1.7 1 0; padding: 2.6vh 3vw 2vh; }
+        .sb-mid--sponsor {
+            flex: 1 1 0;
+            z-index: 2;
+            align-items: center;
+            justify-content: center;
+            padding: 3vh 3.5vw;
+        }
+        /* sponsor: team-colour line on the left & right slanted edges only, same
+           thickness (--bar) as the timebox - home hue left, away hue right.
+           These double as the dividers between the three segments. */
+        .sb-mid--sponsor::after {
+            z-index: 0;
+            background: linear-gradient(90deg, var(--home-color) 50%, var(--away-color) 50%);
+            clip-path: polygon(var(--mskew) 0, 100% 0, calc(100% - var(--mskew)) 100%, 0 100%);
+        }
+        .sb-mid--sponsor::before {
+            z-index: 1;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 22%),
+                linear-gradient(180deg, #182740, #0e1a2c);
+            clip-path: polygon(
+                calc(var(--mskew) + var(--bar)) 0,
+                calc(100% - var(--bar)) 0,
+                calc(100% - var(--mskew) - var(--bar)) 100%,
+                var(--bar) 100%);
+        }
+        .sb-mid--home { margin-right: calc(var(--mskew) * -1); padding-left: 3.5vw; padding-right: 5vw; }
+        .sb-mid--away { margin-left: calc(var(--mskew) * -1); padding-left: 5vw; padding-right: 3.5vw; }
+
+        .board-sponsor-slide {
+            position: absolute;
+            left: 10%; top: 14%;
+            width: 80%; height: 72%;
+            object-fit: contain;
+            object-position: center;
+            opacity: 0;
+            transform: scale(0.96);
+            transition: opacity 0.9s ease, transform 0.9s ease;
+            filter:
+                drop-shadow(0 0 10px rgba(255, 255, 255, 0.12))
+                drop-shadow(0 8px 20px rgba(0, 0, 0, 0.55));
+        }
+        .board-sponsor-slide.visible { opacity: 1; transform: scale(1); }
+
+        /* ---- BOTTOM PANEL: two parallelogram halves ---- */
+        .sb-penbar {
+            --ph: 24vh;
+            --pskew: calc(var(--ph) * var(--slant-ratio));   /* same angle as the top bar */
+            position: relative;
+            z-index: 1;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: stretch;
+            padding: 1.4vh 2.4vw;
+        }
+        .sb-pen {
+            position: relative;
+            height: var(--ph);
+            flex: 1 1 0;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 2vh 3vw 1.6vh;
+        }
+        .sb-pen > * { position: relative; z-index: 2; }
+        /* plain parallelogram fill, NO edge lines on any side */
+        .sb-pen::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 26%),
+                linear-gradient(180deg, #131f31, #0c1523);
+            clip-path: polygon(var(--pskew) 0, 100% 0, calc(100% - var(--pskew)) 100%, 0 100%);
+        }
+        .sb-pen--home { margin-right: calc(var(--pskew) * -1); padding-left: 4.5vw; padding-right: 6vw; }
+        .sb-pen--away { padding-left: 6vw; padding-right: 4.5vw; }
+        .sb-pen--away .sb-lh { flex-direction: row-reverse; justify-content: flex-start; }
+
+        /* ---- list header ---- */
+        .sb-lh {
+            display: flex;
+            align-items: center;
+            gap: 0.7vw;
+            padding-bottom: 1.15vh;
+            margin-bottom: 1.1vh;
+            border-bottom: 1px solid var(--divider);
+        }
+        .sb-mid--away .sb-lh {
+            flex-direction: row-reverse;
+            justify-content: flex-start;
+        }
+        .sb-lh-text {
+            font-family: var(--cond);
+            font-weight: 600;
+            font-size: 1.32vw;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+        .sb-lh--goal { color: #3ad35b; }
+        .sb-lh--pen  { color: #e8483a; }
+
+        .sb-ico-goal { width: 1.7vw; height: 1.7vw; flex-shrink: 0; color: #3ad35b; display: block; }
+        .sb-ico-pen {
+            width: 1.15vw; height: 1.15vw;
+            flex-shrink: 0;
+            border-radius: 1px;
+            background: #e8483a;
+            box-shadow: 0 0 8px rgba(232, 72, 58, 0.55);
+        }
+
+        /* ---- rows ---- */
+        .sb-rows { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+        .sb-row {
+            display: flex;
+            align-items: center;
+            gap: 0.85vw;
+            padding: 0.55vh 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .sb-row:last-child { border-bottom: none; }
+        .sb-row--empty { color: var(--text-dim); font-weight: 400; padding: 0.9vh 0; }
+
+        /* time + number are parallelogram chips, same slant as everything else */
+        .sb-tag {
+            --th: 2.9vh;
+            --tskew: calc(var(--th) * var(--slant-ratio));
+            display: inline-flex;
+            align-items: stretch;
+            flex-shrink: 0;
+            height: var(--th);
+        }
+        .sb-time,
+        .sb-num {
+            display: flex;
+            align-items: center;
+            font-style: italic;
+            clip-path: polygon(var(--tskew) 0, 100% 0, calc(100% - var(--tskew)) 100%, 0 100%);
+        }
+        .sb-time {
+            font-family: var(--num);
+            font-weight: 600;
+            font-size: 1.15vw;
+            font-variant-numeric: tabular-nums;
+            padding: 0 calc(0.8vw + var(--tskew));
+        }
+        .sb-num {
+            font-family: var(--cond);
+            font-weight: 700;
+            font-size: 1.08vw;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 3px rgba(0, 0, 0, 0.6);
+            margin-left: calc(var(--tskew) * -1);
+            padding: 0 0.72vw 0 calc(0.72vw + var(--tskew));
+        }
+        /* number chip in the team colour */
+        .sb-mid--home .sb-num { background: var(--home-color); }
+        .sb-mid--away .sb-num { background: var(--away-color); }
+        .sb-name-txt {
+            flex: 1;
+            min-width: 0;
+            font-family: var(--cond);
+            font-weight: 300;
+            font-style: italic;
+            font-size: 1.4vw;
+            letter-spacing: 0.01em;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sb-rows--goal .sb-time {
+            color: #4ade80;
+            background: rgba(19, 40, 29, 0.7);
+            box-shadow: inset 0 0 0 1.5px rgba(74, 222, 128, 0.4);
+        }
+        .sb-rows--goal .sb-num { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28); }
+
+        .sb-rows--pen .sb-time {
+            color: #fff;
+            font-weight: 700;
+            background: linear-gradient(180deg, #c23a2b, #9c2517);
+            box-shadow: inset 0 0 0 1.5px rgba(232, 72, 58, 0.5);
+        }
+        .sb-rows--pen .sb-num { box-shadow: inset 0 0 0 1.5px rgba(232, 72, 58, 0.35); }
+        .sb-rows--pen .sb-name-txt { font-weight: 400; }
+
         @media (prefers-reduced-motion: reduce) {
-            .events-track, .events-section--goal .events-track, .board-sponsor-slide, .en-flag { transition: none; }
-            .en-flag, .en-flag.active { animation: none; }
+            .sb-en, .sb-en.active, .board-sponsor-slide { transition: none; animation: none; }
         }
 
         /* ================= BREAK / INTERMISSION FULLSCREEN VIEW ================= */
@@ -531,9 +810,6 @@
             line-height: 1;
         }
 
-        /* Team match-up with crests - mirrors the live board's identity styling.
-           3-column grid so the score stays dead-centre on screen no matter how
-           long the team names are; each name sits toward the centre. */
         .break-matchup {
             margin-top: 1.4vh;
             width: min(92vw, 1500px);
@@ -568,7 +844,6 @@
             overflow-wrap: break-word;
             max-width: 20vw;
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
-            /* same dark box as the score */
             background: rgba(0, 0, 0, 0.35);
             border-radius: 14px;
             padding: 1vh 1.6vw;
@@ -588,10 +863,8 @@
         }
         .break-colon { color: var(--text-dim); }
 
-        /* SPONSOR SLIDESHOW CONTAINER */
         .sponsor-stage {
             flex: 0 0 auto;
-            /* Fixed normalisation box - centred on the board, clear of the header. */
             width: 72vw;
             height: 40vh;
             margin: 0 auto;
@@ -601,10 +874,6 @@
             position: relative;
             z-index: 1;
         }
-
-        /* Barely-there diffuse aura so dark sponsor logos (black wordmarks etc.)
-           don't vanish against the dark stage - no hard rim, just a soft glow.
-           Only while an actual logo is on screen (not the "no sponsors" notice). */
         .sponsor-stage:has(.sponsor-slide)::before {
             content: "";
             position: absolute;
@@ -614,13 +883,11 @@
             z-index: 0;
             pointer-events: none;
         }
-
         .sponsor-slide {
             position: absolute;
             top: 0;
             left: 0;
             z-index: 1;
-            /* Every logo is scaled to fit the same box, so they all read as one size. */
             width: 100%;
             height: 100%;
             object-fit: contain;
@@ -638,10 +905,7 @@
             transform: scale(1);
         }
 
-        /* ============ SHARED "ARENA" FURNITURE (break / time-out / goal) ============
-           Same visual language as the goal sequence, but calm and loopable:
-           slanted drifting light beams + a skewed team-colour headline panel.
-           Driven by --arena-color / --arena-ink (set per screen, ink picked in JS). */
+        /* ============ SHARED "ARENA" FURNITURE (break / time-out / goal) ============ */
         .stage-beams {
             position: absolute;
             inset: -20%;
@@ -659,8 +923,6 @@
                 transparent);
             filter: blur(7px);
             opacity: 0.22;
-            /* slow searchlight pan + gentle brightness pulse; each beam desynced
-               and half of them sweeping the opposite way */
             animation: stageBeamSweep 15s ease-in-out infinite alternate;
         }
         .stage-beams span:nth-child(1) { left: 8%;  width: 5vw; animation-duration: 15s; animation-delay: -2s; }
@@ -695,13 +957,7 @@
             100% { transform: skewX(-9deg) scale(1) translateY(0); opacity: 1; }
         }
 
-        /* ============ GOAL OVERLAY - "arena" goal-horn sequence (~5 s) ============
-           Beats, echoing the reference clip: white impact flash -> slanted light
-           beams sweep the dark stage -> a skewed panel slams in and the word fills
-           left-to-right -> zoom push -> concentric skewed "tunnel" rings pulse out
-           -> the letters settle onto individual team-colour planks -> a diagonal
-           "logo . TOR!" tile strip scrolls behind. Everything is team-colour driven
-           via --goal-color / --goal-ink (readable ink picked in JS). */
+        /* ============ GOAL OVERLAY - "arena" goal-horn sequence (~5 s) ============ */
         #goalOverlay {
             --goal-color: var(--accent-home);
             --goal-ink: #ffffff;
@@ -727,7 +983,6 @@
             animation: goalOut 0.4s ease 5.6s both;
         }
 
-        /* --- white impact flash on the whistle --- */
         .goal-flash {
             position: absolute; inset: 0;
             background: #fff;
@@ -736,7 +991,6 @@
         }
         #goalOverlay.active .goal-flash { animation: goalFlash 0.5s ease-out both; }
 
-        /* --- slanted light beams sweeping the dark stage --- */
         .goal-beams {
             position: absolute; inset: -20%;
             pointer-events: none;
@@ -761,7 +1015,6 @@
         .goal-beams span:nth-child(4) { left: 69%; width: 3vw; opacity: 0.4; animation-duration: 9.5s; }
         .goal-beams span:nth-child(5) { left: 87%; width: 5vw; animation-duration: 12s; }
 
-        /* --- concentric skewed rectangle "tunnel" pulse --- */
         .goal-rings {
             position: absolute;
             left: 50%; top: 50%;
@@ -784,8 +1037,6 @@
         .goal-rings span:nth-child(4) { animation-delay: 1.35s; }
         .goal-rings span:nth-child(5) { animation-delay: 1.5s; }
 
-        /* --- diagonal "logo . GOAL!" marquee wall (outro): full rows, each row
-               scrolling opposite to the one above it --- */
         .goal-tiles {
             position: absolute;
             inset: -25%;
@@ -817,7 +1068,6 @@
             font-style: italic;
             white-space: nowrap;
             filter: blur(1px);
-            /* one team-colour box around logo + word */
             background: var(--goal-color);
             color: var(--goal-ink);
             padding: 0.4vh 1vw;
@@ -891,7 +1141,6 @@
             line-height: 1;
         }
 
-        /* --- hero panel carrying the word --- */
         .goal-panel {
             position: relative;
             display: inline-flex;
@@ -938,9 +1187,6 @@
         #goalOverlay.active .goal-letter:nth-child(4) { animation-delay: 0.75s, 1.69s; }
         #goalOverlay.active .goal-letter:nth-child(5) { animation-delay: 0.86s, 1.76s; }
 
-        /* Scorer name - a smaller sibling of the GOAL! panel: same skew, same
-           team-colour box, heavy italic. Font scales with the viewport and the
-           box wraps, so even very long names stay on screen. */
         .goal-hero-scorer {
             max-width: min(88vw, 1200px);
             padding: 0.7vh 2.4vw;
@@ -967,14 +1213,8 @@
             18%  { opacity: 0.85; }
             100% { opacity: 0; }
         }
-        @keyframes goalFadeIn {
-            from { opacity: 0; }
-            to   { opacity: 1; }
-        }
-        @keyframes goalOut {
-            from { opacity: 1; }
-            to   { opacity: 0; }
-        }
+        @keyframes goalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes goalOut { from { opacity: 1; } to { opacity: 0; } }
         @keyframes goalBeamDrift {
             from { transform: rotate(11deg) translateY(-7%); }
             to   { transform: rotate(13deg) translateY(7%); }
@@ -1002,9 +1242,7 @@
             0%   { transform: skewX(-9deg) rotate(-1.2deg); }
             100% { transform: skewX(-9deg) rotate(1.2deg); }
         }
-        @keyframes goalLetterFill {
-            to { color: var(--goal-ink); }
-        }
+        @keyframes goalLetterFill { to { color: var(--goal-ink); } }
         @keyframes goalScorerIn {
             from { clip-path: inset(0 100% 0 0); opacity: 0; transform: skewX(-9deg) translateY(1.4vh); }
             to   { clip-path: inset(0 0 0 0);   opacity: 1; transform: skewX(-9deg) translateY(0); }
@@ -1023,20 +1261,9 @@
             from { transform: translateY(1.8vh); opacity: 0; }
             to   { transform: translateY(0); opacity: 1; }
         }
-        @keyframes goalTilesIn {
-            from { opacity: 0; }
-            to   { opacity: 0.32; }
-        }
-        /* row 1 runs left->right, row 2 right->left, alternating; -50% == one
-           half of the (doubled) row content, so the loop is seamless */
-        @keyframes goalRowRight {
-            from { translate: -50% 0; }
-            to   { translate: 0 0; }
-        }
-        @keyframes goalRowLeft {
-            from { translate: 0 0; }
-            to   { translate: -50% 0; }
-        }
+        @keyframes goalTilesIn { from { opacity: 0; } to { opacity: 0.32; } }
+        @keyframes goalRowRight { from { translate: -50% 0; } to { translate: 0 0; } }
+        @keyframes goalRowLeft { from { translate: 0 0; } to { translate: -50% 0; } }
 
         @media (prefers-reduced-motion: reduce) {
             #goalOverlay.active,
@@ -1070,81 +1297,111 @@
 
     <!-- MATCH VIEW -->
     <div id="matchView">
-        <div class="board-panel" id="boardPanel">
+        <div class="sb" id="boardPanel">
 
-            <!-- TOP: [ identity + score ] [ clock ] [ score + identity ] -->
-            <div class="panel-top">
-                <div class="side side-home">
-                    <div class="team-identity">
-                        <img id="homeLogo" class="team-logo" src="" alt="Home Logo">
-                        <div class="team-headline">
-                            <div class="team-name" id="homeName">HEIM</div>
-                            <div class="team-timeout" id="homeTimeout"><span class="to-label">Auszeit</span></div>
-                        </div>
+            <!-- TOP BAR -->
+            <div class="sb-topbar">
+                <div class="sb-team sb-team--home">
+                    <div class="sb-logo-cell">
+                        <img id="homeLogo" class="sb-logo" src="" alt="">
                     </div>
-                    <div class="team-score-wrap">
-                        <div class="team-score" id="homeScore" style="color: var(--text-main);">0</div>
-                        <div class="team-stats-row" id="homeStatsRow">
-                            <span>SCHÜSSE</span>
-                            <span class="stats-val" id="homeShots">0</span>
-                        </div>
+                    <div class="sb-name-wrap">
+                        <div class="sb-name" id="homeName">HEIM</div>
+                        <div class="sb-name-underline"></div>
+                        <div class="sb-timeout" id="homeTimeout" hidden><span class="to-label">Auszeit</span></div>
                     </div>
                 </div>
 
-                <div class="center-stack">
-                    <div class="period-box" id="periodDisplay">DRITTEL 1</div>
-                    <div class="main-clock" id="clockDisplay">15:00</div>
-                    <div class="clock-caption" id="timeFormatLabel">RESTZEIT</div>
-                </div>
-
-                <div class="side side-away">
-                    <div class="team-identity">
-                        <img id="awayLogo" class="team-logo" src="" alt="Away Logo">
-                        <div class="team-headline">
-                            <div class="team-name" id="awayName">GAST</div>
-                            <div class="team-timeout" id="awayTimeout"><span class="to-label">Auszeit</span></div>
-                        </div>
-                    </div>
-                    <div class="team-score-wrap">
-                        <div class="team-score" id="awayScore" style="color: var(--text-main);">0</div>
-                        <div class="team-stats-row" id="awayStatsRow">
-                            <span>SCHÜSSE</span>
-                            <span class="stats-val" id="awayShots">0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- BOTTOM BAND: home events | sponsor | away events -->
-            <div class="panel-band">
-                <div class="en-flag en-flag-home" id="homeEmptyNet">Empty Net</div>
-                <div class="en-flag en-flag-away" id="awayEmptyNet">Empty Net</div>
-
-                <div class="events-col events-col-home">
-                    <div class="events-section events-section--goal" id="homeGoalSection" hidden>
-                        <div class="events-label">Torschützen</div>
-                        <div class="events-viewport"><div class="events-track" id="homeGoalTrack"></div></div>
-                    </div>
-                    <div class="events-section events-section--penalty" id="homePenaltySection" hidden>
-                        <div class="events-label">Strafen</div>
-                        <div class="events-viewport"><div class="events-track" id="homePenaltyTrack"></div></div>
+                <div class="sb-scorebox sb-scorebox--home">
+                    <div class="sb-score-num" id="homeScore" style="color: var(--text-main);">0</div>
+                    <div class="sb-sog" id="homeStatsRow" style="display:none;">
+                        <span>Schüsse</span><span class="stats-val" id="homeShots">0</span>
                     </div>
                 </div>
 
-                <div class="sponsor-slot" id="boardSponsorSlot"></div>
-
-                <div class="events-col events-col-away">
-                    <div class="events-section events-section--goal" id="awayGoalSection" hidden>
-                        <div class="events-label">Torschützen</div>
-                        <div class="events-viewport"><div class="events-track" id="awayGoalTrack"></div></div>
+                <div class="sb-timebox">
+                    <div class="sb-timebox-inner">
+                        <div class="sb-period" id="periodDisplay">DRITTEL 1</div>
+                        <div class="sb-dots" id="periodDots"></div>
+                        <div class="sb-clock" id="clockDisplay">15:00</div>
+                        <div class="sb-clock-rule"></div>
+                        <div class="sb-clock-caption" id="timeFormatLabel">RESTZEIT</div>
                     </div>
-                    <div class="events-section events-section--penalty" id="awayPenaltySection" hidden>
-                        <div class="events-label">Strafen</div>
-                        <div class="events-viewport"><div class="events-track" id="awayPenaltyTrack"></div></div>
+                </div>
+
+                <div class="sb-scorebox sb-scorebox--away">
+                    <div class="sb-score-num" id="awayScore" style="color: var(--text-main);">0</div>
+                    <div class="sb-sog" id="awayStatsRow" style="display:none;">
+                        <span>Schüsse</span><span class="stats-val" id="awayShots">0</span>
+                    </div>
+                </div>
+
+                <div class="sb-team sb-team--away">
+                    <div class="sb-logo-cell">
+                        <img id="awayLogo" class="sb-logo" src="" alt="">
+                    </div>
+                    <div class="sb-name-wrap">
+                        <div class="sb-name" id="awayName">GAST</div>
+                        <div class="sb-name-underline"></div>
+                        <div class="sb-timeout" id="awayTimeout" hidden><span class="to-label">Auszeit</span></div>
                     </div>
                 </div>
             </div>
 
+            <!-- EMPTY-NET badges (overlap the seam) -->
+            <div class="sb-en-row">
+                <div class="sb-en sb-en--home" id="homeEmptyNet">Empty Net</div>
+                <div class="sb-en sb-en--away" id="awayEmptyNet">Empty Net</div>
+            </div>
+
+            <!-- LOWER PANEL: middle bar (scorers | sponsor | scorers) + penalty bar -->
+            <div class="sb-lower">
+
+                <div class="sb-midbar">
+                    <div class="sb-mid sb-mid--goal sb-mid--home">
+                        <div class="sb-lh sb-lh--goal">
+                            <svg class="sb-ico-goal" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                                <path d="M12 1.5v4.5M12 18v4.5M1.5 12h4.5M18 12h4.5" stroke="currentColor" stroke-width="2"></path>
+                            </svg>
+                            <span class="sb-lh-text">Tor Schützen</span>
+                        </div>
+                        <div class="sb-rows sb-rows--goal" id="homeGoalTrack"></div>
+                    </div>
+
+                    <div class="sb-mid sb-mid--sponsor" id="boardSponsorSlot"></div>
+
+                    <div class="sb-mid sb-mid--goal sb-mid--away">
+                        <div class="sb-lh sb-lh--goal">
+                            <svg class="sb-ico-goal" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2"></circle>
+                                <path d="M12 1.5v4.5M12 18v4.5M1.5 12h4.5M18 12h4.5" stroke="currentColor" stroke-width="2"></path>
+                            </svg>
+                            <span class="sb-lh-text">Tor Schützen</span>
+                        </div>
+                        <div class="sb-rows sb-rows--goal" id="awayGoalTrack"></div>
+                    </div>
+                </div>
+
+                <div class="sb-penbar">
+                    <div class="sb-pen sb-pen--home">
+                        <div class="sb-lh sb-lh--pen">
+                            <span class="sb-ico-pen" aria-hidden="true"></span>
+                            <span class="sb-lh-text">Strafen</span>
+                        </div>
+                        <div class="sb-rows sb-rows--pen" id="homePenaltyTrack"></div>
+                    </div>
+                    <div class="sb-pen sb-pen--away">
+                        <div class="sb-lh sb-lh--pen">
+                            <span class="sb-ico-pen" aria-hidden="true"></span>
+                            <span class="sb-lh-text">Strafen</span>
+                        </div>
+                        <div class="sb-rows sb-rows--pen" id="awayPenaltyTrack"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sb-glow"></div>
         </div>
     </div>
 
@@ -1172,7 +1429,6 @@
         </div>
 
         <div class="sponsor-stage" id="sponsorStage">
-            <!-- Sponsor images injected dynamically -->
             <div style="color: var(--text-dim); font-size: 1.5vw;" id="noSponsorsNotice">Präsentiert von unseren Sponsoren</div>
         </div>
     </div>
@@ -1187,7 +1443,7 @@
         </div>
     </div>
 
-    <!-- GOAL OVERLAY - arena goal-horn sequence (~5 s) -->
+    <!-- GOAL OVERLAY -->
     <div id="goalOverlay">
         <div class="goal-flash"></div>
         <div class="goal-beams"><span></span><span></span><span></span><span></span><span></span></div>
@@ -1208,7 +1464,6 @@
         let sponsorInterval = null;
         let goalTimeout = null;
 
-        // ---------- helpers ----------
         function escapeHtml(s) {
             return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
                 { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
@@ -1225,29 +1480,26 @@
             return /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+|rgba?\([\d.,\s%]+\))$/.test(v) ? v : "";
         }
 
-        // The board is a silent display - all audio is intentionally disabled.
+        // "20 Max Meermann" / "#20 Max Meermann" -> { num: "#20", name: "Max Meermann" }
+        function splitPlayer(p) {
+            const str = String(p == null ? "" : p).trim();
+            const m = /^#?(\d+)[\s.]*(.*)$/.exec(str);
+            if (m && m[1]) return { num: "#" + m[1], name: (m[2] || "").trim() || ("#" + m[1]) };
+            return { num: "", name: str };
+        }
 
         function connectWS() {
             const loc = window.location;
             const wsProtocol = loc.protocol === "https:" ? "wss:" : "ws:";
             const wsUrl = `${wsProtocol}//${loc.host}/ws`;
-
             ws = new WebSocket(wsUrl);
-
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
-                if (msg.type === "STATE_UPDATE") {
-                    renderState(msg.state);
-                } else if (msg.type === "goal") {
-                    showGoalOverlay(msg);
-                } else if (msg.type === "SPONSORS_UPDATE") {
-                    loadSponsors();
-                }
+                if (msg.type === "STATE_UPDATE") renderState(msg.state);
+                else if (msg.type === "goal") showGoalOverlay(msg);
+                else if (msg.type === "SPONSORS_UPDATE") loadSponsors();
             };
-
-            ws.onclose = () => {
-                setTimeout(connectWS, 1500);
-            };
+            ws.onclose = () => setTimeout(connectWS, 1500);
         }
 
         function formatTime(sec) {
@@ -1256,8 +1508,22 @@
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
+        function renderPeriodDots(s) {
+            const el = document.getElementById("periodDots");
+            if (!el) return;
+            if (s.shootout_active) { el.innerHTML = ""; return; }
+            const isOT = s.period === "OT";
+            const cur = isOT ? 4 : (parseInt(s.period, 10) || 1);
+            let html = "";
+            for (let i = 1; i <= 3; i++) {
+                const cls = i < cur ? "done" : (i === cur ? "active" : "");
+                html += `<span class="sb-dot ${cls}"></span>`;
+            }
+            if (isOT) html += `<span class="sb-dot ot active"></span>`;
+            el.innerHTML = html;
+        }
+
         function renderState(s) {
-            // Clock & Period
             document.getElementById("clockDisplay").innerText = formatTime(s.time_remaining);
             if (s.shootout_active) {
                 const hg = (s.home_shootout || []).filter(a => a.scored).length;
@@ -1266,21 +1532,20 @@
             } else {
                 document.getElementById("periodDisplay").innerText = s.period === "OT" ? "OVERTIME" : `DRITTEL ${s.period}`;
             }
+            renderPeriodDots(s);
 
-            // Shots on goal - only shown when enabled from the control desk
             const showShots = s.show_shots === true;
             document.getElementById("homeStatsRow").style.display = showShots ? "flex" : "none";
             document.getElementById("awayStatsRow").style.display = showShots ? "flex" : "none";
 
-            // Empty-net flag on the band's top edge - slides in / out
             document.getElementById("homeEmptyNet").classList.toggle("active", s.home_goalie === false);
             document.getElementById("awayEmptyNet").classList.toggle("active", s.away_goalie === false);
 
-            // Time-out status (one per team per game)
-            document.getElementById("homeTimeout").classList.toggle("used", (s.home_timeouts_used || 0) > 0);
-            document.getElementById("awayTimeout").classList.toggle("used", (s.away_timeouts_used || 0) > 0);
+            const hTO = (s.home_timeouts_used || 0) > 0;
+            const aTO = (s.away_timeouts_used || 0) > 0;
+            document.getElementById("homeTimeout").hidden = !hTO;
+            document.getElementById("awayTimeout").hidden = !aTO;
 
-            // Team time-out overlay - tinted with the team that called it
             const toOverlay = document.getElementById("timeoutOverlay");
             if (s.timeout_active) {
                 const tt = s.timeout_team === "away" ? "away" : "home";
@@ -1297,48 +1562,37 @@
                 toOverlay.classList.remove("active");
             }
 
-            // Home
+            // Home identity
             document.getElementById("homeName").innerText = s.home_name;
             document.getElementById("homeName").style.color = safeColor(s.home_text_color) || 'var(--text-main)';
             document.getElementById("homeScore").innerText = s.home_score;
             document.getElementById("homeShots").innerText = s.home_shots;
-            // score number follows the team's text colour; team colour drives the panel + glow
             document.getElementById("homeScore").style.color = safeColor(s.home_text_color) || 'var(--text-main)';
-            document.getElementById("boardPanel").style.setProperty('--home-color', safeColor(s.home_color) || '#ef4444');
+            document.getElementById("boardPanel").style.setProperty('--home-color', safeColor(s.home_color) || 'var(--accent-home)');
+            document.querySelector(".sb-topbar").style.setProperty('--home-color', safeColor(s.home_color) || 'var(--accent-home)');
 
             const homeLogo = document.getElementById("homeLogo");
-            if (s.home_logo) {
-                homeLogo.src = s.home_logo;
-                homeLogo.classList.add("has-logo");
-            } else {
-                homeLogo.classList.remove("has-logo");
-            }
+            if (s.home_logo) { homeLogo.src = s.home_logo; homeLogo.classList.add("has-logo"); }
+            else homeLogo.classList.remove("has-logo");
 
-            // Away
+            // Away identity
             document.getElementById("awayName").innerText = s.away_name;
             document.getElementById("awayName").style.color = safeColor(s.away_text_color) || 'var(--text-main)';
             document.getElementById("awayScore").innerText = s.away_score;
             document.getElementById("awayShots").innerText = s.away_shots;
             document.getElementById("awayScore").style.color = safeColor(s.away_text_color) || 'var(--text-main)';
-            document.getElementById("boardPanel").style.setProperty('--away-color', safeColor(s.away_color) || '#00d2ff');
+            document.getElementById("boardPanel").style.setProperty('--away-color', safeColor(s.away_color) || 'var(--accent-away)');
+            document.querySelector(".sb-topbar").style.setProperty('--away-color', safeColor(s.away_color) || 'var(--accent-away)');
 
             const awayLogo = document.getElementById("awayLogo");
-            if (s.away_logo) {
-                awayLogo.src = s.away_logo;
-                awayLogo.classList.add("has-logo");
-            } else {
-                awayLogo.classList.remove("has-logo");
-            }
+            if (s.away_logo) { awayLogo.src = s.away_logo; awayLogo.classList.add("has-logo"); }
+            else awayLogo.classList.remove("has-logo");
 
-            // Penalties & goal scorers - in the bottom band, left column = home, right = away.
-            // The band height is fixed, so the score above it never shifts.
             renderTeamEvents("home", s.home_penalties || [], s.home_goals || []);
             renderTeamEvents("away", s.away_penalties || [], s.away_goals || []);
 
-            // Break / Intermission View
             const breakView = document.getElementById("breakView");
             if (s.break_mode) {
-                // Rising edge: pull the current sponsor set so a mid-game change is reflected.
                 if (!breakView.classList.contains("active")) loadSponsors();
                 breakView.classList.add("active");
                 document.getElementById("breakClockDisplay").innerText = formatTime(s.break_time_remaining || 0);
@@ -1351,114 +1605,65 @@
             }
         }
 
-        // Team crests + score in the intermission view - mirrors the live board identity.
         function renderBreakTeam(side, s) {
             const cap = side.charAt(0).toUpperCase() + side.slice(1);
             const fallback = side === "home" ? "HEIM" : "GAST";
             document.getElementById("break" + cap + "Name").innerText = s[side + "_name"] || fallback;
-
             const scoreEl = document.getElementById("break" + cap + "Score");
             scoreEl.innerText = s[side + "_score"];
             scoreEl.style.color = safeColor(s[side + "_color"]) ||
                 (side === "home" ? "var(--accent-home)" : "var(--accent-away)");
-
             const logo = document.getElementById("break" + cap + "Logo");
             const src = s[side + "_logo"];
-            if (src) {
-                logo.src = src;
-                logo.hidden = false;
-            } else {
-                logo.hidden = true;
-                logo.removeAttribute("src");
-            }
+            if (src) { logo.src = src; logo.hidden = false; }
+            else { logo.hidden = true; logo.removeAttribute("src"); }
         }
 
-        // ================= IN-CARD EVENT LISTS =================
-        // Strafen: one non-wrapping row at the bottom.
-        // Torschützen: a vertical stack right above it - newest chip at the bottom, the
-        // block grows upward as more scorers come. When there are more than fit the area
-        // it becomes a slideshow, paging through the history and back to the newest.
-        const GOALS_PER_PAGE = 5;
-        const GOAL_PAGE_MS = 5000;
-        const eventState = {};
+        // ================= LIST CARDS =================
+        const MAX_GOAL_ROWS = 5;
+        const MAX_PEN_ROWS = 4;
 
         function renderTeamEvents(side, penalties, goals) {
-            const pens = [...penalties].sort(
-                (a, b) => (a.remaining_seconds || 0) - (b.remaining_seconds || 0)
-            );
-            const scored = [...goals].slice(-20); // chronological - newest ends up at the bottom
-
-            fillEventTrack(
-                side + "Penalty",
-                pens.slice(0, 8).map(p => ({ t: formatTime(p.remaining_seconds || 0), who: "#" + (p.player || "") })),
-            );
-            fillEventTrack(
-                side + "Goal",
-                scored.map(g => ({ t: String(g.time || ""), who: String(g.player || "") })),
-            );
+            const pens = [...penalties]
+                .sort((a, b) => (a.remaining_seconds || 0) - (b.remaining_seconds || 0))
+                .slice(0, MAX_PEN_ROWS)
+                .map(p => {
+                    const sp = splitPlayer(p.player);
+                    return { time: formatTime(p.remaining_seconds || 0), num: sp.num, name: sp.name };
+                });
+            const gs = [...goals].reverse().slice(0, MAX_GOAL_ROWS).map(g => {
+                const sp = splitPlayer(g.player);
+                return { time: String(g.time || ""), num: sp.num, name: sp.name };
+            });
+            renderRows(side + "Goal", gs);
+            renderRows(side + "Penalty", pens);
         }
 
-        function fillEventTrack(key, rows) {
-            const track = document.getElementById(key + "Track");
-            const section = document.getElementById(key + "Section");
-            if (!track || !section) return;
-
-            section.hidden = rows.length === 0;
-            track.innerHTML = rows.map(r => `
-                <div class="event-row">
-                    <span class="event-time">${escapeHtml(r.t)}</span>
-                    <span class="event-player">${escapeHtml(r.who)}</span>
-                </div>
-            `).join('');
-
-            const st = eventState[key] || (eventState[key] = { page: 0, count: 0, pages: 1 });
-
-            if (key.endsWith("Goal")) {
-                if (rows.length !== st.count) st.page = 0;   // a new scorer -> jump back to newest
-                st.count = rows.length;
-                st.pages = Math.max(1, Math.ceil(rows.length / GOALS_PER_PAGE));
-                if (st.page >= st.pages) st.page = 0;
-                positionGoalTrack(key);
+        function renderRows(key, rows) {
+            const body = document.getElementById(key + "Track");
+            if (!body) return;
+            if (rows.length === 0) {
+                body.innerHTML = `<div class="sb-row sb-row--empty">&ndash;</div>`;
                 return;
             }
-
-            st.count = rows.length;
+            body.innerHTML = rows.map(r => `
+                <div class="sb-row">
+                    <span class="sb-tag">
+                        <span class="sb-time">${escapeHtml(r.time)}</span>
+                        ${r.num ? `<span class="sb-num">${escapeHtml(r.num)}</span>` : ``}
+                    </span>
+                    <span class="sb-name-txt">${escapeHtml(r.name)}</span>
+                </div>
+            `).join('');
         }
-
-        function positionGoalTrack(key) {
-            const track = document.getElementById(key + "Track");
-            const viewport = track && track.parentElement;
-            const st = eventState[key];
-            if (!track || !viewport || !st || !track.firstElementChild) return;
-            if (st.pages <= 1) { track.style.transform = ""; return; }
-            const rowH = track.firstElementChild.getBoundingClientRect().height;
-            const rowGap = parseFloat(getComputedStyle(track).rowGap) || 0;
-            const overflow = Math.max(0, track.scrollHeight - viewport.clientHeight);
-            // page 0 keeps the newest chips at the bottom; higher pages reveal the history
-            const shift = Math.min(st.page * GOALS_PER_PAGE * (rowH + rowGap), overflow);
-            track.style.transform = `translateY(${shift}px)`;
-        }
-
-        setInterval(() => {
-            for (const key of ["homeGoal", "awayGoal"]) {
-                const st = eventState[key];
-                if (st && st.pages > 1) {
-                    st.page = (st.page + 1) % st.pages;
-                    positionGoalTrack(key);
-                }
-            }
-        }, GOAL_PAGE_MS);
 
         // ================= GOAL OVERLAY =================
-        // Pick black or white ink so the word stays legible on any team colour.
         function readableInk(color) {
             const m = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(String(color || "").trim());
             if (!m) return "#ffffff";
             let h = m[1];
             if (h.length === 3) h = h.split("").map(c => c + c).join("");
-            const r = parseInt(h.slice(0, 2), 16),
-                  g = parseInt(h.slice(2, 4), 16),
-                  b = parseInt(h.slice(4, 6), 16);
+            const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
             const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
             return lum > 0.62 ? "#0b0f19" : "#ffffff";
         }
@@ -1467,65 +1672,51 @@
             const overlay = document.getElementById("goalOverlay");
             const scorerEl = document.getElementById("goalHeroScorer");
             const tilesEl = document.getElementById("goalTiles");
-
-            // Tint the whole celebration with the scoring team's colour.
             const goalColor = safeColor(data.color) ||
                 (data.team === "away" ? "var(--accent-away)" : "var(--accent-home)");
             overlay.style.setProperty("--goal-color", goalColor);
             overlay.style.setProperty("--goal-ink", readableInk(safeColor(data.color)));
 
-            // Only the scorer's name (styled like GOAL!). No team name / crest here.
             const scorerBits = [];
             if (data.scorer) scorerBits.push(String(data.scorer));
             if (data.empty_net) scorerBits.push("Empty Net");
             scorerEl.innerText = scorerBits.join("  ·  ");
 
             const logoSrc = safeUploadUrl(data.team_logo);
-
-            // Build the diagonal "logo · GOAL!" marquee wall for the outro:
-            // full rows, each scrolling opposite to the one above it.
             const cell = logoSrc
                 ? `<span class="goal-tile"><img src="${escapeHtml(logoSrc)}" alt=""><b>GOAL!</b></span>`
                 : `<span class="goal-tile"><b>GOAL!</b></span>`;
             const rowInner = cell.repeat(28);
             let rows = "";
             for (let i = 0; i < 16; i++) {
-                // ~20% slower than before so the wall stays calm while it lingers
                 rows += `<div class="goal-tile-row ${i % 2 ? "rtl" : "ltr"}" style="--dur:${18 + (i % 4) * 4}s">${rowInner}</div>`;
             }
             tilesEl.innerHTML = rows;
 
-            // Restart the whole sequence even if an overlay is already showing.
             overlay.classList.remove("active");
             void overlay.offsetWidth;
             overlay.classList.add("active");
-
             if (goalTimeout) clearTimeout(goalTimeout);
-            goalTimeout = setTimeout(() => {
-                overlay.classList.remove("active");
-            }, 6000);
+            goalTimeout = setTimeout(() => overlay.classList.remove("active"), 6000);
         }
 
-        // ================= SPONSOR SLIDESHOW =================
+        // ================= SPONSORS =================
         async function loadSponsors() {
             try {
                 const res = await fetch("/api/sponsors", { cache: "no-store" });
                 sponsorsList = await res.json();
                 sponsorIndex = 0;
                 buildSponsorElements();
-                // Re-arm the rotation for the fresh set if a break is currently on screen.
                 if (document.getElementById("breakView").classList.contains("active")) {
                     stopSponsorSlideshow();
                     startSponsorSlideshow();
                 }
-                // The always-on sponsor slot in the live board's bottom band.
                 updateBoardSponsors();
             } catch (e) {
                 console.error("Error loading sponsors:", e);
             }
         }
 
-        // ---- In-panel sponsor slot (bottom band, centre column) - runs during live play ----
         let boardSponsorIndex = 0;
         let boardSponsorInterval = null;
         const BOARD_SPONSOR_MS = 7000;
@@ -1559,10 +1750,7 @@
         }
 
         function stopBoardSponsorRotation() {
-            if (boardSponsorInterval) {
-                clearInterval(boardSponsorInterval);
-                boardSponsorInterval = null;
-            }
+            if (boardSponsorInterval) { clearInterval(boardSponsorInterval); boardSponsorInterval = null; }
         }
 
         function buildSponsorElements() {
@@ -1571,7 +1759,6 @@
                 stage.innerHTML = '<div style="color: var(--text-dim); font-size: 1.5vw;" id="noSponsorsNotice">Präsentiert von unseren Sponsoren</div>';
                 return;
             }
-
             stage.innerHTML = sponsorsList.map((s, idx) => `
                 <img src="${escapeHtml(safeUploadUrl(s.url))}" alt="${escapeHtml(s.name || '')}" class="sponsor-slide ${idx === 0 ? 'visible' : ''}" id="sponsorSlide_${idx}">
             `).join('');
@@ -1582,25 +1769,18 @@
             sponsorInterval = setInterval(() => {
                 const total = sponsorsList.length;
                 if (total <= 1) return;
-
                 const prev = document.getElementById(`sponsorSlide_${sponsorIndex}`);
                 if (prev) prev.classList.remove("visible");
-
                 sponsorIndex = (sponsorIndex + 1) % total;
-
                 const next = document.getElementById(`sponsorSlide_${sponsorIndex}`);
                 if (next) next.classList.add("visible");
             }, 4000);
         }
 
         function stopSponsorSlideshow() {
-            if (sponsorInterval) {
-                clearInterval(sponsorInterval);
-                sponsorInterval = null;
-            }
+            if (sponsorInterval) { clearInterval(sponsorInterval); sponsorInterval = null; }
         }
 
-        // INIT
         connectWS();
         loadSponsors();
     </script>

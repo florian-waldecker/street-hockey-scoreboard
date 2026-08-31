@@ -6,3 +6,7 @@ __pycache__/
 env/
 venv/
 .DS_Store
+
+# Runtime data (teams, sponsors, uploaded logos, saved game state)
+/uploads/
+/data/

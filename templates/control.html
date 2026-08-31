@@ -21,6 +21,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        [hidden] { display: none !important; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-dark);
@@ -28,8 +29,15 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            padding: 1rem;
-            gap: 1rem;
+            padding: 0.6rem;
+            gap: 0.6rem;
+        }
+        /* The live tab is built to fill a full 1080p+ window without scrolling.
+           On smaller / half-screen sizes it just scrolls normally. */
+        @media (min-width: 1280px) and (min-height: 820px) {
+            body.fit-live { height: 100vh; overflow: hidden; }
+            body.fit-live #tab-live { min-height: 0; }
+            body.fit-live #tab-live .panel { overflow-y: auto; }
         }
 
         /* HEADER */
@@ -37,13 +45,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.8rem 1.4rem;
+            padding: 0.45rem 1.2rem;
             background: var(--panel-bg);
             border-radius: 10px;
             border: 1px solid var(--border);
         }
         .header-title {
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 800;
             letter-spacing: 1px;
             display: flex;
@@ -63,33 +71,85 @@
         .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
         .status-dot.online { background: #10b981; box-shadow: 0 0 10px #10b981; }
 
+        /* TAB NAVIGATION */
+        .tab-bar {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.3rem;
+        }
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: 1px solid transparent;
+            border-bottom: 3px solid transparent;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            padding: 0.45rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.15s ease;
+        }
+        .tab-btn:hover { color: var(--text-main); background: var(--card-bg); }
+        .tab-btn.active {
+            background: var(--card-bg);
+            border-color: var(--border-light);
+            color: var(--text-main);
+        }
+        .tab-btn.active.tab-live { border-bottom-color: var(--accent-yellow); }
+        .tab-btn.active.tab-setup { border-bottom-color: var(--accent-purple); }
+
+        .tab-panel { display: none; flex-direction: column; gap: 0.6rem; flex: 1; min-height: 0; }
+        .tab-panel.active { display: flex; }
+        #tab-setup.active { overflow-y: auto; }
+
+        /* GROUP LABELS INSIDE PANELS */
+        .group-label {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            padding-bottom: 0.2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
         /* MAIN LIVE DASHBOARD (TOP) */
         .dashboard {
             display: grid;
-            grid-template-columns: 1fr 1.35fr 1fr;
-            gap: 1.2rem;
+            grid-template-columns: 1fr 1.3fr 1fr;
+            gap: 0.7rem;
             flex: 1;
+            min-height: 0;
         }
 
         .panel {
             background: var(--panel-bg);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 1.2rem;
+            padding: 0.8rem;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.55rem;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
 
-        .panel-home { border-top: 5px solid var(--accent-home); }
-        .panel-away { border-top: 5px solid var(--accent-away); }
-        .panel-center { border-top: 5px solid var(--accent-yellow); }
+        .panel-home { border-top: 4px solid var(--accent-home); }
+        .panel-away { border-top: 4px solid var(--accent-away); }
+        .panel-center { border-top: 4px solid var(--accent-yellow); }
 
         .team-header-box {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.4rem;
         }
 
         .team-title-row {
@@ -110,7 +170,7 @@
         .team-badge-logo.has-logo { display: block; }
 
         .team-name-input {
-            font-size: 1.2rem;
+            font-size: 1.05rem;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -131,12 +191,12 @@
         .big-number-box {
             background: var(--card-bg);
             border-radius: 10px;
-            padding: 0.9rem 1rem;
+            padding: 0.55rem 0.8rem;
             text-align: center;
             border: 1px solid var(--border);
         }
-        .big-number-label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
-        .big-number-val { font-size: 3.5rem; font-weight: 900; line-height: 1.1; margin: 0.2rem 0; font-variant-numeric: tabular-nums; }
+        .big-number-label { font-size: 0.78rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+        .big-number-val { font-size: 2.6rem; font-weight: 900; line-height: 1.05; margin: 0.1rem 0; font-variant-numeric: tabular-nums; }
 
         /* BUTTONS */
         .btn-group { display: flex; gap: 0.5rem; }
@@ -145,8 +205,8 @@
             color: #fff;
             border: 1px solid #3b4e76;
             border-radius: 8px;
-            padding: 0.65rem 0.9rem;
-            font-size: 0.95rem;
+            padding: 0.5rem 0.7rem;
+            font-size: 0.9rem;
             font-weight: 700;
             cursor: pointer;
             flex: 1;
@@ -159,6 +219,8 @@
         }
         .btn:hover { background: #2f4066; border-color: #506899; }
         .btn:active { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn:disabled:hover { background: #23304c; border-color: #3b4e76; }
 
         .btn-primary { background: var(--accent-green); border-color: #059669; color: #022c22; font-weight: 800; }
         .btn-primary:hover { background: #34d399; }
@@ -175,18 +237,18 @@
         .btn-purple { background: #7c3aed; border-color: #8b5cf6; color: #fff; }
         .btn-purple:hover { background: #8b5cf6; }
 
-        .btn-lg { padding: 0.9rem; font-size: 1.2rem; }
+        .btn-lg { padding: 0.6rem; font-size: 1.05rem; }
 
         /* CLOCKS */
         .clock-display {
-            font-size: 4.2rem;
+            font-size: 3rem;
             font-weight: 900;
             text-align: center;
             font-variant-numeric: tabular-nums;
             color: #facc15;
             text-shadow: 0 0 25px rgba(250, 204, 21, 0.35);
             background: #000;
-            padding: 0.4rem;
+            padding: 0.25rem;
             border-radius: 10px;
             border: 2px solid #27272a;
         }
@@ -196,10 +258,10 @@
             background: rgba(139, 92, 246, 0.1);
             border: 2px solid rgba(139, 92, 246, 0.4);
             border-radius: 10px;
-            padding: 0.9rem;
+            padding: 0.55rem;
             display: flex;
             flex-direction: column;
-            gap: 0.6rem;
+            gap: 0.4rem;
         }
         .break-active-banner {
             background: #7c3aed;
@@ -214,12 +276,41 @@
         }
         .break-active-banner.active { display: block; }
 
+        /* TIMEOUT & SHOOTOUT BOXES */
+        .timeout-box, .shootout-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.55rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .timeout-banner {
+            background: #0284c7;
+            color: #fff;
+            font-weight: 800;
+            text-align: center;
+            padding: 5px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            font-variant-numeric: tabular-nums;
+            display: none;
+        }
+        .timeout-banner.active { display: block; }
+
+        /* GOALIE TOGGLE */
+        .goalie-toggle { font-size: 0.8rem; padding: 0.4rem; width: 100%; flex: 0 0 auto; }
+        .goalie-toggle.off { background: #7f1d1d; border-color: #b91c1c; color: #fecaca; }
+        .goalie-toggle.off:hover { background: #991b1b; }
+
         /* PENALTIES & SCORERS LISTS */
         .items-list {
             display: flex;
             flex-direction: column;
-            gap: 0.4rem;
-            max-height: 120px;
+            gap: 0.3rem;
+            max-height: 88px;
             overflow-y: auto;
         }
         .item-row {
@@ -227,10 +318,10 @@
             justify-content: space-between;
             align-items: center;
             background: #0d1424;
-            padding: 0.4rem 0.6rem;
+            padding: 0.3rem 0.55rem;
             border-radius: 6px;
             border-left: 3px solid var(--accent-yellow);
-            font-size: 0.85rem;
+            font-size: 0.82rem;
         }
         .item-del {
             background: #334155;
@@ -242,6 +333,65 @@
             font-size: 0.75rem;
         }
         .item-del:hover { background: #ef4444; }
+
+        /* SCORER ROSTER LIST (goal modal) */
+        .scorer-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        .scorer-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            text-align: left;
+            background: #0d1424;
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent-green);
+            color: var(--text-main);
+            padding: 0.55rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.12s ease;
+        }
+        .scorer-row:hover { background: #16203a; border-left-color: #34d399; }
+        .scorer-row:active { transform: scale(0.99); }
+        .scorer-num {
+            min-width: 2.1rem;
+            text-align: center;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            color: var(--accent-green);
+            background: rgba(16, 185, 129, 0.14);
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+        .scorer-num.no-num {
+            color: var(--text-dim);
+            background: rgba(148, 163, 184, 0.14);
+        }
+
+        /* ROSTER EDITOR (Kader + Bulk-Import) */
+        .roster-editor { display: flex; flex-direction: column; gap: 0.5rem; }
+        .roster-add-row { display: grid; grid-template-columns: 64px 1fr auto; gap: 0.4rem; }
+        .roster-list { display: flex; flex-direction: column; gap: 0.3rem; max-height: 230px; overflow-y: auto; }
+        .roster-row { display: grid; grid-template-columns: 64px 1fr auto; gap: 0.4rem; align-items: center; }
+        .roster-add-row input, .roster-row input {
+            background: #0d1424; border: 1px solid var(--border); color: var(--text-main);
+            padding: 0.42rem 0.5rem; border-radius: 6px; font-size: 0.85rem; width: 100%;
+        }
+        .roster-add-row input:focus, .roster-row input:focus { outline: none; border-color: #38bdf8; }
+        .roster-row input.dupe { border-color: var(--accent-yellow); background: rgba(234, 179, 8, 0.12); }
+        .roster-foot { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-dim); }
+        .roster-warn { color: var(--accent-yellow); font-size: 0.8rem; }
+        .roster-import { border-top: 1px dashed var(--border); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
+        .roster-import summary { cursor: pointer; font-size: 0.82rem; color: #38bdf8; }
+        .roster-import textarea { min-height: 66px; resize: vertical; }
 
         /* BOTTOM MANAGEMENT PANELS (TEAMS & SPONSORS) */
         .mgmt-section {
@@ -354,8 +504,8 @@
             background: var(--panel-bg);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 0.6rem 1rem;
-            font-size: 0.82rem;
+            padding: 0.3rem 1rem;
+            font-size: 0.75rem;
             color: var(--text-dim);
             display: flex;
             flex-wrap: wrap;
@@ -368,6 +518,48 @@
             padding: 2px 6px;
             border-radius: 4px;
             font-weight: bold;
+        }
+
+        /* ===== Generous sizing when a full 1080p+ window is available.
+                Falls back to the compact base rules on small / half screens. ===== */
+        @media (min-width: 1280px) and (min-height: 820px) {
+            body { padding: 0.9rem; gap: 0.85rem; }
+            header { padding: 0.7rem 1.4rem; }
+            .header-title { font-size: 1.1rem; }
+            .tab-bar { padding: 0.4rem; }
+            .tab-btn { padding: 0.7rem 1rem; font-size: 0.95rem; }
+            .tab-panel { gap: 0.85rem; }
+            .dashboard { gap: 1rem; }
+            .panel { padding: 1.1rem; gap: 0.8rem; }
+            .panel-home, .panel-away, .panel-center { border-top-width: 5px; }
+
+            .team-header-box { gap: 0.55rem; }
+            .team-name-input { font-size: 1.2rem; }
+            .goalie-toggle { font-size: 0.85rem; padding: 0.55rem; }
+
+            .big-number-box { padding: 0.8rem 1rem; }
+            .big-number-label { font-size: 0.82rem; }
+            .big-number-val { font-size: 3.4rem; }
+
+            .btn { padding: 0.62rem 0.9rem; font-size: 0.95rem; }
+            .btn-lg { padding: 0.95rem; font-size: 1.25rem; }
+
+            /* The desk clock grows into the centre column's free space and stays
+               vertically centred - large and readable for the timekeeper. */
+            .clock-display { padding: 0.5rem; }
+            .panel-center .clock-display {
+                flex: 1 1 auto;
+                min-height: 150px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: clamp(4rem, 12vh, 8rem);
+            }
+
+            .items-list { max-height: 150px; }
+            .break-control-box { padding: 0.8rem; gap: 0.55rem; }
+            .timeout-box, .shootout-box { padding: 0.8rem; gap: 0.55rem; }
+            .hotkeys-footer { padding: 0.55rem 1rem; font-size: 0.8rem; }
         }
     </style>
 </head>
@@ -384,6 +576,15 @@
         </div>
     </header>
 
+    <!-- TAB NAVIGATION -->
+    <nav class="tab-bar">
+        <button type="button" id="tabBtn-live" class="tab-btn tab-live" onclick="switchTab('live')">▶ Spielbetrieb</button>
+        <button type="button" id="tabBtn-setup" class="tab-btn tab-setup" onclick="switchTab('setup')">⚙️ Vorbereitung</button>
+    </nav>
+
+    <!-- ============ TAB: SPIELBETRIEB (LIVE) ============ -->
+    <section id="tab-live" class="tab-panel">
+
     <!-- LIVE MATCH DASHBOARD -->
     <div class="dashboard">
 
@@ -399,6 +600,7 @@
                         <option value="">-- Team-Vorlage wählen --</option>
                     </select>
                 </div>
+                <button type="button" id="homeGoalieBtn" class="btn goalie-toggle" onclick="toggleGoalie('home')">🥅 Torwart: AN</button>
             </div>
 
             <!-- HOME SCORE -->
@@ -412,7 +614,7 @@
             </div>
 
             <!-- HOME SHOTS -->
-            <div class="big-number-box">
+            <div class="big-number-box" id="homeShotsBox" hidden>
                 <div class="big-number-label">Schüsse Heim</div>
                 <div class="big-number-val" id="homeShots" style="font-size: 2.2rem;">0</div>
                 <div class="btn-group">
@@ -425,9 +627,7 @@
             <div>
                 <div class="big-number-label" style="margin-bottom: 0.4rem;">Strafzeiten Heim</div>
                 <div class="btn-group" style="margin-bottom: 0.4rem;">
-                    <input type="text" id="homePenPlayer" class="input-text" placeholder="# Spieler" style="max-width: 90px; text-align: center;">
-                    <button class="btn btn-warning" onclick="addPenalty('home', 120)">+2 Min</button>
-                    <button class="btn btn-warning" onclick="addPenalty('home', 300)">+5 Min</button>
+                    <button class="btn btn-warning" onclick="openPenaltyModal('home')">+ Strafzeit</button>
                 </div>
                 <div class="items-list" id="homePenaltyList"></div>
             </div>
@@ -442,11 +642,10 @@
         <!-- ================= CENTER CLOCK & PERIOD PANEL ================= -->
         <div class="panel panel-center">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 800; font-size: 1rem; color: #f59e0b;">SPIELUHR & DRITTEL</span>
-                <span id="periodBadge" style="background: var(--card-bg); padding: 3px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold;">Drittel 1</span>
+                <span style="font-weight: 800; font-size: 0.85rem; color: #f59e0b; letter-spacing: 0.5px;">SPIELUHR &amp; DRITTEL</span>
+                <span id="periodBadge" style="background: var(--card-bg); padding: 2px 8px; border-radius: 4px; font-size: 0.82rem; font-weight: bold;">Drittel 1</span>
             </div>
 
-            <!-- MAIN CLOCK -->
             <div class="clock-display" id="clockDisplay">15:00</div>
 
             <div class="btn-group">
@@ -454,51 +653,74 @@
                 <button class="btn btn-warning btn-lg" onclick="sendCmd('TIMER_RESET')">↺ RESET</button>
             </div>
 
-            <!-- TIME ADJUST -->
-            <div style="display: flex; gap: 0.4rem;">
+            <div style="display: flex; gap: 0.35rem;">
                 <button class="btn" onclick="sendCmd('TIMER_ADJUST', {seconds: 10})">+10s</button>
                 <button class="btn" onclick="sendCmd('TIMER_ADJUST', {seconds: -10})">-10s</button>
-                <button class="btn" onclick="sendCmd('TIMER_ADJUST', {seconds: 60})">+1 Min</button>
-                <button class="btn" onclick="sendCmd('TIMER_ADJUST', {seconds: -60})">-1 Min</button>
+                <button class="btn" onclick="sendCmd('TIMER_ADJUST', {seconds: 60})">+1m</button>
+                <button class="btn" onclick="sendCmd('TIMER_ADJUST', {seconds: -60})">-1m</button>
+                <button class="btn" onclick="openTimeSetModal()">⏱ Exakt</button>
             </div>
 
-            <!-- PERIOD SELECTOR -->
-            <div>
-                <div class="big-number-label" style="margin-bottom: 0.3rem;">Abschnitt / Drittel</div>
-                <div class="btn-group">
-                    <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '1'})">1.</button>
-                    <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '2'})">2.</button>
-                    <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '3'})">3.</button>
-                    <button class="btn" onclick="sendCmd('PERIOD_SET', {period: 'OT'})">OT</button>
-                </div>
+            <div style="display: flex; gap: 0.35rem; align-items: center;">
+                <span style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: 800; min-width: 2.6rem;">Drittel</span>
+                <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '1'})">1.</button>
+                <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '2'})">2.</button>
+                <button class="btn" onclick="sendCmd('PERIOD_SET', {period: '3'})">3.</button>
+                <button class="btn" onclick="sendCmd('PERIOD_SET', {period: 'OT'})">OT</button>
             </div>
 
-            <!-- DRITTELPAUSE / BREAK MODE -->
-            <div class="break-control-box">
+            <!-- DRITTELPAUSE -->
+            <div class="break-control-box" id="breakBox">
                 <div class="break-active-banner" id="breakBanner">⏸ DRITTELPAUSE AKTIV (SPONSOREN-SLIDESHOW LÄUFT)</div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.85rem; font-weight: 800; color: #a78bfa;">☕ DRITTELPAUSE</span>
-                    <span id="breakClockDisplay" style="font-weight: 900; font-size: 1.1rem; color: #facc15; font-variant-numeric: tabular-nums;">05:00</span>
+                    <span style="font-size: 0.78rem; font-weight: 800; color: #a78bfa;">☕ DRITTELPAUSE</span>
+                    <span id="breakClockDisplay" style="font-weight: 900; font-size: 1rem; color: #facc15; font-variant-numeric: tabular-nums;">05:00</span>
                 </div>
-                <div class="btn-group">
-                    <button class="btn btn-purple" id="breakToggleBtn" onclick="sendCmd('BREAK_TIMER_TOGGLE')">▶ Pause Start/Stop</button>
-                    <button class="btn" onclick="sendCmd('BREAK_SET_DURATION', {duration: 300})">5 Min</button>
-                    <button class="btn" onclick="sendCmd('BREAK_SET_DURATION', {duration: 600})">10 Min</button>
-                    <button class="btn" onclick="sendCmd('BREAK_SET_DURATION', {duration: 900})">15 Min</button>
-                    <button class="btn btn-danger" onclick="sendCmd('BREAK_MODE_SET', {active: false})">Beenden</button>
+                <div class="btn-group" style="gap: 0.35rem;">
+                    <button class="btn btn-purple" id="breakToggleBtn" onclick="sendCmd('BREAK_TIMER_TOGGLE')">▶ Start/Stop</button>
+                    <button class="btn" onclick="sendCmd('BREAK_SET_DURATION', {duration: 180})">3m</button>
+                    <button class="btn" onclick="sendCmd('BREAK_SET_DURATION', {duration: 300})">5m</button>
+                    <button class="btn" onclick="sendCmd('BREAK_SET_DURATION', {duration: 600})">10m</button>
+                    <button class="btn btn-danger" onclick="sendCmd('BREAK_MODE_SET', {active: false})">Ende</button>
                 </div>
             </div>
 
-            <!-- BUZZER & PRESETS -->
-            <div style="margin-top: auto; display: flex; flex-direction: column; gap: 0.5rem;">
-                <button class="btn btn-danger btn-lg" style="background: #e11d48; border-color: #f43f5e;" onclick="sendCmd('BUZZER_TRIGGER')">📢 HUPE / SIRENE (B)</button>
-                <div style="display: flex; gap: 0.4rem; align-items: center;">
-                    <span style="font-size: 0.8rem; color: var(--text-dim);">Dauer:</span>
-                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="sendCmd('PERIOD_DURATION_SET', {duration: 600})">10m</button>
-                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="sendCmd('PERIOD_DURATION_SET', {duration: 900})">15m</button>
-                    <button class="btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="sendCmd('PERIOD_DURATION_SET', {duration: 1200})">20m</button>
+            <!-- TIMEOUT -->
+            <div class="timeout-box" id="timeoutBox">
+                <div class="timeout-banner" id="timeoutBanner">⏱ TIMEOUT · <span id="timeoutBannerTeam"></span> · <span id="timeoutBannerClock">01:00</span></div>
+                <div class="btn-group" style="gap: 0.35rem;">
+                    <span style="align-self: center; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; font-weight: 800; min-width: 2.6rem;">Timeout</span>
+                    <button class="btn" id="timeoutHomeBtn" onclick="requestTimeout('home')">Heim</button>
+                    <button class="btn" id="timeoutAwayBtn" onclick="requestTimeout('away')">Gast</button>
+                    <button class="btn btn-danger" onclick="sendCmd('TIMEOUT_END')">Ende</button>
+                    <button class="btn" onclick="sendCmd('TIMEOUT_RESET_COUNT')" title="Timeout-Zähler zurücksetzen">↺</button>
                 </div>
             </div>
+
+            <!-- PENALTYSCHIESSEN -->
+            <div class="shootout-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                    <button class="btn" id="shootoutToggleBtn" onclick="toggleShootout()">Penaltyschießen starten</button>
+                    <span id="shootoutTally" style="font-weight: 900; font-size: 1.1rem; font-variant-numeric: tabular-nums; color: #a78bfa;">0 : 0</span>
+                </div>
+                <div id="shootoutControls" hidden>
+                    <div class="btn-group" style="gap: 0.35rem; margin-bottom: 0.35rem;">
+                        <span style="align-self: center; font-size: 0.75rem; color: var(--text-dim); min-width: 2.4rem;">Heim</span>
+                        <button class="btn btn-primary" onclick="sendCmd('SHOOTOUT_ATTEMPT', {team: 'home', scored: true})">Tor</button>
+                        <button class="btn" onclick="sendCmd('SHOOTOUT_ATTEMPT', {team: 'home', scored: false})">Fehl</button>
+                        <button class="btn" onclick="sendCmd('SHOOTOUT_UNDO', {team: 'home'})">↺</button>
+                    </div>
+                    <div class="btn-group" style="gap: 0.35rem;">
+                        <span style="align-self: center; font-size: 0.75rem; color: var(--text-dim); min-width: 2.4rem;">Gast</span>
+                        <button class="btn btn-primary" onclick="sendCmd('SHOOTOUT_ATTEMPT', {team: 'away', scored: true})">Tor</button>
+                        <button class="btn" onclick="sendCmd('SHOOTOUT_ATTEMPT', {team: 'away', scored: false})">Fehl</button>
+                        <button class="btn" onclick="sendCmd('SHOOTOUT_UNDO', {team: 'away'})">↺</button>
+                    </div>
+                    <div class="items-list" id="shootoutSequence" style="max-height: 70px; margin-top: 0.35rem;"></div>
+                </div>
+            </div>
+
+            <button class="btn btn-danger" onclick="newGame()" style="flex: 0 0 auto; font-size: 0.85rem;">🗑 Neues Spiel · Spielstand zurücksetzen</button>
         </div>
 
         <!-- ================= AWAY PANEL ================= -->
@@ -513,6 +735,7 @@
                         <option value="">-- Team-Vorlage wählen --</option>
                     </select>
                 </div>
+                <button type="button" id="awayGoalieBtn" class="btn goalie-toggle" onclick="toggleGoalie('away')">🥅 Torwart: AN</button>
             </div>
 
             <!-- AWAY SCORE -->
@@ -526,7 +749,7 @@
             </div>
 
             <!-- AWAY SHOTS -->
-            <div class="big-number-box">
+            <div class="big-number-box" id="awayShotsBox" hidden>
                 <div class="big-number-label">Schüsse Gast</div>
                 <div class="big-number-val" id="awayShots" style="font-size: 2.2rem;">0</div>
                 <div class="btn-group">
@@ -539,9 +762,7 @@
             <div>
                 <div class="big-number-label" style="margin-bottom: 0.4rem;">Strafzeiten Gast</div>
                 <div class="btn-group" style="margin-bottom: 0.4rem;">
-                    <input type="text" id="awayPenPlayer" class="input-text" placeholder="# Spieler" style="max-width: 90px; text-align: center;">
-                    <button class="btn btn-warning" onclick="addPenalty('away', 120)">+2 Min</button>
-                    <button class="btn btn-warning" onclick="addPenalty('away', 300)">+5 Min</button>
+                    <button class="btn btn-warning" onclick="openPenaltyModal('away')">+ Strafzeit</button>
                 </div>
                 <div class="items-list" id="awayPenaltyList"></div>
             </div>
@@ -553,6 +774,47 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- HOTKEYS FOOTER -->
+    <div class="hotkeys-footer">
+        <div><span class="key">Space</span> Spieluhr Start/Stop</div>
+        <div><span class="key">H</span> +1 Tor Heim</div>
+        <div><span class="key">A</span> +1 Tor Gast</div>
+        <div><span class="key">1</span> / <span class="key">2</span> / <span class="key">3</span> Drittel setzen</div>
+    </div>
+
+    </section>
+    <!-- ============ END TAB: SPIELBETRIEB ============ -->
+
+    <!-- ============ TAB: VORBEREITUNG (SETUP) ============ -->
+    <section id="tab-setup" class="tab-panel">
+
+    <!-- SPIEL-EINSTELLUNGEN -->
+    <div class="mgmt-card">
+        <div class="mgmt-title"><span>⚙️ SPIEL-EINSTELLUNGEN</span></div>
+        <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 0.85rem; color: var(--text-dim); min-width: 6rem;">Drittel-Dauer:</span>
+            <button class="btn" style="max-width: 90px;" onclick="sendCmd('PERIOD_DURATION_SET', {duration: 600})">10 min</button>
+            <button class="btn" style="max-width: 90px;" onclick="sendCmd('PERIOD_DURATION_SET', {duration: 900})">15 min</button>
+            <button class="btn" style="max-width: 90px;" onclick="sendCmd('PERIOD_DURATION_SET', {duration: 1200})">20 min</button>
+        </div>
+        <label style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; cursor: pointer;">
+            <input type="checkbox" id="showShotsCheck" style="width: auto;" onchange="sendCmd('DISPLAY_SET', {show_shots: this.checked})">
+            Schüsse (Shots on Goal) auf Bedienfeld &amp; Großanzeige einblenden
+        </label>
+    </div>
+
+    <!-- AKTUELLE AUFSTELLUNG (Kader der geladenen Teams) -->
+    <div class="mgmt-card">
+        <div class="mgmt-title"><span>🧍 AKTUELLE AUFSTELLUNG</span></div>
+        <p style="font-size: 0.8rem; color: var(--text-dim); margin: 0;">
+            Kader der aktuell geladenen Teams &ndash; wirkt sofort auf Torschützen- und Strafen-Dialog.
+        </p>
+        <div class="btn-group">
+            <button type="button" class="btn" id="editHomeRosterBtn" onclick="openRosterModal('home')">Heim-Kader bearbeiten</button>
+            <button type="button" class="btn" id="editAwayRosterBtn" onclick="openRosterModal('away')">Gast-Kader bearbeiten</button>
+        </div>
     </div>
 
     <!-- LOWER MANAGEMENT SECTION: TEAMS & SPONSORS -->
@@ -575,18 +837,20 @@
                         Text: <input type="color" id="formTeamTextColor" value="#ffffff" style="cursor:pointer; width:30px; height:30px; border:none; background:none;">
                     </div>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; align-items: center;">
-                    <div>
-                        <span style="font-size: 0.8rem; color: var(--text-dim);">Logo (PNG/JPG/SVG):</span>
+                <div>
+                    <span style="font-size: 0.8rem; color: var(--text-dim);">Logo (PNG/JPG/SVG):</span>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <input type="file" id="formTeamLogo" accept="image/*" class="input-text" style="font-size: 0.8rem;">
+                        <img id="formLogoPreview" src="" alt="" hidden style="width: 34px; height: 34px; object-fit: contain; border-radius: 4px; background: #0d1424;">
                     </div>
-                    <div>
-                        <span style="font-size: 0.8rem; color: var(--text-dim);">Spielerliste (z.B. "10 Müller, 14 Schmidt"):</span>
-                        <input type="text" id="formTeamPlayers" class="input-text" placeholder="10 Müller, 14 Schmidt">
-                    </div>
+                    <span id="teamEditHint" hidden style="font-size: 0.75rem; color: var(--text-dim);">Vorhandenes Logo bleibt erhalten; eine neue Datei ersetzt es.</span>
+                </div>
+                <div>
+                    <span style="font-size: 0.8rem; color: var(--text-dim);">Kader (Nr. + Name):</span>
+                    <div id="formRosterEditor"></div>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
-                    <button type="submit" class="btn btn-primary" style="flex: 2;">💾 Team speichern</button>
+                    <button type="submit" id="teamSaveBtn" class="btn btn-primary" style="flex: 2;">💾 Team speichern</button>
                     <button type="button" class="btn" onclick="openAllTeamsModal()" style="flex: 1;">📋 Gespeicherte Teams</button>
                 </div>
             </form>
@@ -609,20 +873,14 @@
 
     </div>
 
-    <!-- HOTKEYS FOOTER -->
-    <div class="hotkeys-footer">
-        <div><span class="key">Space</span> Spieluhr Start/Stop</div>
-        <div><span class="key">H</span> +1 Tor Heim</div>
-        <div><span class="key">A</span> +1 Tor Gast</div>
-        <div><span class="key">B</span> Hupe / Buzzer</div>
-        <div><span class="key">1</span> / <span class="key">2</span> / <span class="key">3</span> Drittel setzen</div>
-    </div>
+    </section>
+    <!-- ============ END TAB: VORBEREITUNG ============ -->
 
     <!-- MODAL: SCORER SELECTION -->
     <div id="scorerModal" class="modal">
         <div class="modal-content">
             <h3 id="scorerModalTitle" style="color: #38bdf8;">🏒 Torschütze auswählen</h3>
-            <div id="scorerRosterButtons" style="display: flex; flex-wrap: wrap; gap: 0.5rem; max-height: 200px; overflow-y: auto;"></div>
+            <div id="scorerRosterButtons" class="scorer-list"></div>
             <div style="display: flex; flex-direction: column; gap: 0.4rem;">
                 <span style="font-size: 0.85rem; color: var(--text-dim);">Oder manuell eingeben (# / Name):</span>
                 <input type="text" id="manualScorerInput" class="input-text" placeholder="z.B. #10 Max Mustermann">
@@ -630,6 +888,51 @@
             <div class="btn-group">
                 <button class="btn btn-primary" onclick="confirmGoalScorer()">Tor bestätigen</button>
                 <button class="btn" onclick="closeScorerModal()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PENALTY (SPIELER + STRAFZEIT) -->
+    <div id="penaltyModal" class="modal">
+        <div class="modal-content">
+            <h3 id="penaltyModalTitle" style="color: #f59e0b;">⏱️ Strafzeit</h3>
+
+            <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                <span style="font-size: 0.85rem; color: var(--text-dim);">Strafzeit (Min : Sek):</span>
+                <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                    <input type="number" id="penaltyMinInput" class="input-text" min="0" max="99" value="2" style="max-width: 64px; text-align: center; flex: 0 0 auto;">
+                    <span style="font-weight: 800;">:</span>
+                    <input type="number" id="penaltySecInput" class="input-text" min="0" max="59" step="5" value="0" style="max-width: 64px; text-align: center; flex: 0 0 auto;">
+                    <button type="button" class="btn" onclick="setPenaltyDuration(120)">2:00</button>
+                    <button type="button" class="btn" onclick="setPenaltyDuration(300)">5:00</button>
+                    <button type="button" class="btn" onclick="setPenaltyDuration(600)">10:00</button>
+                </div>
+            </div>
+
+            <div id="penaltyRosterButtons" class="scorer-list"></div>
+            <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                <span style="font-size: 0.85rem; color: var(--text-dim);">Oder manuell eingeben (# / Name):</span>
+                <input type="text" id="manualPenaltyInput" class="input-text" placeholder="z.B. 10">
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-warning" onclick="confirmPenalty()">Strafe eintragen</button>
+                <button class="btn" onclick="closePenaltyModal()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SPIELZEIT EXAKT SETZEN -->
+    <div id="timeSetModal" class="modal">
+        <div class="modal-content" style="max-width: 360px;">
+            <h3 style="color: #facc15;">⏱️ Spielzeit exakt setzen</h3>
+            <div style="display: flex; gap: 0.4rem; align-items: center; justify-content: center;">
+                <input type="number" id="timeSetMin" class="input-text" min="0" max="99" style="max-width: 72px; text-align: center; font-size: 1.2rem;">
+                <span style="font-weight: 800; font-size: 1.4rem;">:</span>
+                <input type="number" id="timeSetSec" class="input-text" min="0" max="59" style="max-width: 72px; text-align: center; font-size: 1.2rem;">
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="confirmTimeSet()">Übernehmen</button>
+                <button class="btn" onclick="closeModal('timeSetModal')">Abbrechen</button>
             </div>
         </div>
     </div>
@@ -645,11 +948,218 @@
         </div>
     </div>
 
+    <!-- MODAL: AKTUELLEN KADER BEARBEITEN -->
+    <div id="rosterModal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="rosterModalTitle" style="color: #38bdf8;">🧍 Kader bearbeiten</h3>
+                <button class="btn" style="padding: 2px 8px;" onclick="closeModal('rosterModal')">✕</button>
+            </div>
+            <div id="rosterModalEditor"></div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="applyRosterModal()">Übernehmen</button>
+                <button class="btn" onclick="closeModal('rosterModal')">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        const MAX_PLAYERS = 40;
         let ws;
         let currentState = {};
         let savedTeams = [];
         let pendingGoalTeam = null;
+        let pendingPenaltyTeam = null;
+
+        // ---------- helpers ----------
+        function escapeHtml(s) {
+            return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
+                { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+            ));
+        }
+
+        function safeUploadUrl(url) {
+            const u = String(url || "");
+            return (u.startsWith("/uploads/") || u.startsWith("data:image/")) ? u : "";
+        }
+
+        // Roster parsing: pull the jersey number out of entries like "10 Müller" / "#10 Max"
+        function parseJerseyNumber(p) {
+            const m = String(p).match(/\d+/);
+            return m ? parseInt(m[0], 10) : null;
+        }
+        function splitPlayer(p) {
+            const s = String(p).trim();
+            const m = s.match(/^#?\s*(\d+)\s*[-.)]?\s*(.*)$/);
+            if (m) return { num: parseInt(m[1], 10), name: m[2].trim() };
+            return { num: parseJerseyNumber(s), name: s };
+        }
+        function sortRoster(list) {
+            return [...list].sort((a, b) => {
+                const na = parseJerseyNumber(a), nb = parseJerseyNumber(b);
+                if (na === null && nb === null) return String(a).localeCompare(String(b), "de");
+                if (na === null) return 1;
+                if (nb === null) return -1;
+                if (na !== nb) return na - nb;
+                return String(a).localeCompare(String(b), "de");
+            });
+        }
+
+        // Normalise free text ("7 Meier, 9 Krüger" or one per line) into "<nr> <name>" strings.
+        function parseRosterText(text) {
+            return String(text || "")
+                .split(/[\n,;]+/)
+                .map(s => s.trim())
+                .filter(Boolean)
+                .map(s => {
+                    const { num, name } = splitPlayer(s);
+                    if (num === null) return name || s;
+                    return name ? `${num} ${name}` : String(num);
+                });
+        }
+
+        // .txt files from Windows Notepad/Excel are often Windows-1252, not UTF-8.
+        function decodeTextFile(buf) {
+            const bytes = new Uint8Array(buf);
+            let text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+            if (text.includes("�")) {
+                try { text = new TextDecoder("windows-1252").decode(bytes); } catch (e) {}
+            }
+            return text;
+        }
+
+        // Growing roster list + bulk import. Returns { getPlayers, setPlayers, clear }.
+        function createRosterEditor(mount) {
+            let players = [];
+            mount.classList.add("roster-editor");
+            mount.innerHTML = `
+                <div class="roster-add-row">
+                    <input type="text" class="re-num" inputmode="numeric" maxlength="3" placeholder="Nr.">
+                    <input type="text" class="re-name" maxlength="40" placeholder="Spielername">
+                    <button type="button" class="btn btn-primary re-add" style="padding: 0.42rem 0.7rem;">+ Hinzufügen</button>
+                </div>
+                <div class="roster-list"></div>
+                <div class="roster-foot">
+                    <span class="re-count"></span>
+                    <button type="button" class="btn re-sort" style="padding: 2px 8px; font-size: 0.75rem;">nach Nr. sortieren</button>
+                    <span class="roster-warn re-warn" hidden></span>
+                </div>
+                <details class="roster-import">
+                    <summary>Mehrere importieren (einf&uuml;gen oder .txt-Datei)</summary>
+                    <textarea class="re-bulk input-text" placeholder="7 Meier, 9 Kr&uuml;ger, 10 Sch&auml;fer &hellip;"></textarea>
+                    <input type="file" class="re-file" accept=".txt,text/plain" style="font-size: 0.78rem;">
+                    <label style="font-size: 0.8rem; color: var(--text-dim);">
+                        <input type="checkbox" class="re-replace" checked style="width: auto;"> Vorhandene Liste ersetzen
+                    </label>
+                    <div class="roster-foot"><span class="re-preview"></span></div>
+                    <button type="button" class="btn re-apply" style="padding: 0.35rem 0.8rem;">&Uuml;bernehmen</button>
+                </details>`;
+
+            const listEl = mount.querySelector(".roster-list");
+            const numEl = mount.querySelector(".re-num");
+            const nameEl = mount.querySelector(".re-name");
+            const countEl = mount.querySelector(".re-count");
+            const warnEl = mount.querySelector(".re-warn");
+            const bulkEl = mount.querySelector(".re-bulk");
+            const fileEl = mount.querySelector(".re-file");
+            const previewEl = mount.querySelector(".re-preview");
+
+            function syncFromDom() {
+                players = [...listEl.querySelectorAll(".roster-row")].map(row => {
+                    const n = row.querySelector(".rr-num").value.trim();
+                    const nm = row.querySelector(".rr-name").value.trim();
+                    return (n ? n + " " : "") + nm;
+                }).map(s => s.trim()).filter(Boolean);
+            }
+
+            function refreshMeta() {
+                const rows = [...listEl.querySelectorAll(".roster-row")];
+                const nums = rows.map(r => parseInt(r.querySelector(".rr-num").value, 10)).filter(n => !isNaN(n));
+                const dupes = [...new Set(nums.filter((n, i) => nums.indexOf(n) !== i))];
+                countEl.innerText = `${rows.length} / ${MAX_PLAYERS} Spieler`;
+                const warns = [];
+                if (rows.length > MAX_PLAYERS) warns.push(`Server kürzt auf ${MAX_PLAYERS}`);
+                if (dupes.length) warns.push(`doppelte Nr.: ${dupes.join(", ")}`);
+                warnEl.hidden = warns.length === 0;
+                warnEl.textContent = warns.join("  ·  ");
+                rows.forEach(r => {
+                    const n = parseInt(r.querySelector(".rr-num").value, 10);
+                    r.querySelector(".rr-num").classList.toggle("dupe", !isNaN(n) && dupes.includes(n));
+                });
+            }
+
+            function renderList() {
+                listEl.innerHTML = players.map(p => {
+                    const { num, name } = splitPlayer(p);
+                    return `<div class="roster-row">
+                        <input class="rr-num" inputmode="numeric" maxlength="3" value="${escapeHtml(num === null ? "" : String(num))}">
+                        <input class="rr-name" maxlength="40" value="${escapeHtml(name || p)}">
+                        <button type="button" class="item-del rr-del">&times;</button>
+                    </div>`;
+                }).join("");
+                refreshMeta();
+            }
+
+            function addFromInputs() {
+                const n = numEl.value.trim();
+                const nm = nameEl.value.trim();
+                if (!n && !nm) return;
+                syncFromDom();
+                players.push(((n ? n + " " : "") + nm).trim());
+                renderList();
+                numEl.value = "";
+                nameEl.value = "";
+                numEl.focus();
+            }
+
+            mount.querySelector(".re-add").addEventListener("click", addFromInputs);
+            nameEl.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addFromInputs(); } });
+            numEl.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); nameEl.focus(); } });
+
+            mount.querySelector(".re-sort").addEventListener("click", () => {
+                syncFromDom();
+                players = sortRoster(players);
+                renderList();
+            });
+
+            listEl.addEventListener("input", refreshMeta);
+            listEl.addEventListener("click", e => {
+                if (!e.target.classList.contains("rr-del")) return;
+                e.target.closest(".roster-row").remove();
+                syncFromDom();
+                refreshMeta();
+            });
+
+            bulkEl.addEventListener("input", () => {
+                const c = parseRosterText(bulkEl.value).length;
+                previewEl.innerText = c ? `${c} Spieler erkannt` : "";
+            });
+            fileEl.addEventListener("change", async () => {
+                const f = fileEl.files[0];
+                if (!f) return;
+                bulkEl.value = decodeTextFile(await f.arrayBuffer());
+                bulkEl.dispatchEvent(new Event("input"));
+                fileEl.value = "";
+            });
+            mount.querySelector(".re-apply").addEventListener("click", () => {
+                const parsed = parseRosterText(bulkEl.value);
+                if (!parsed.length) return;
+                syncFromDom();
+                players = mount.querySelector(".re-replace").checked ? parsed : players.concat(parsed);
+                renderList();
+                bulkEl.value = "";
+                previewEl.innerText = "";
+                mount.querySelector(".roster-import").open = false;
+            });
+
+            renderList();
+
+            return {
+                getPlayers() { addFromInputs(); syncFromDom(); return players.slice(); },
+                setPlayers(arr) { players = (arr || []).map(String).map(s => s.trim()).filter(Boolean); renderList(); },
+                clear() { players = []; renderList(); bulkEl.value = ""; previewEl.innerText = ""; }
+            };
+        }
 
         // WEBSOCKET
         function connectWS() {
@@ -669,6 +1179,8 @@
                 if (msg.type === "STATE_UPDATE") {
                     currentState = msg.state;
                     renderUI(msg.state);
+                } else if (msg.type === "SPONSORS_UPDATE") {
+                    fetchSponsors();
                 }
             };
 
@@ -691,11 +1203,25 @@
             return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
+        // Team colours: paint the strip above the tile + the score in the team's colour
+        function isValidCssColor(c) {
+            return typeof c === "string" && /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(c.trim());
+        }
+        function applyTeamAccent(side, color) {
+            const fallback = side === "home" ? "#ef4444" : "#00d2ff";
+            const c = isValidCssColor(color) ? color.trim() : fallback;
+            const panel = document.getElementById(side + "Panel");
+            if (panel) panel.style.borderTopColor = c;
+            const score = document.getElementById(side + "Score");
+            if (score) score.style.color = c;
+        }
+
         // UI RENDER
         function renderUI(state) {
             // Clock & Period
             document.getElementById("clockDisplay").innerText = formatTime(state.time_remaining);
-            document.getElementById("periodBadge").innerText = `Drittel ${state.period}`;
+            document.getElementById("periodBadge").innerText =
+                state.period === "OT" ? "OVERTIME" : `Drittel ${state.period}`;
 
             const toggleBtn = document.getElementById("toggleBtn");
             if (state.timer_running) {
@@ -726,7 +1252,6 @@
                 document.getElementById("homeNameInput").value = state.home_name;
             }
             document.getElementById("homeScore").innerText = state.home_score;
-            document.getElementById("homeShots").innerText = state.home_shots;
 
             const homeLogo = document.getElementById("homeLogoPreview");
             if (state.home_logo) {
@@ -741,7 +1266,6 @@
                 document.getElementById("awayNameInput").value = state.away_name;
             }
             document.getElementById("awayScore").innerText = state.away_score;
-            document.getElementById("awayShots").innerText = state.away_shots;
 
             const awayLogo = document.getElementById("awayLogoPreview");
             if (state.away_logo) {
@@ -751,6 +1275,31 @@
                 awayLogo.classList.remove("has-logo");
             }
 
+            // Team colours on the tiles
+            applyTeamAccent("home", state.home_color);
+            applyTeamAccent("away", state.away_color);
+
+            // Goalie (empty-net) toggles
+            setGoalieBtn("home", state.home_goalie);
+            setGoalieBtn("away", state.away_goalie);
+
+            // Shots on goal - only shown when enabled
+            const showShots = state.show_shots === true;
+            document.getElementById("homeShotsBox").hidden = !showShots;
+            document.getElementById("awayShotsBox").hidden = !showShots;
+            if (showShots) {
+                document.getElementById("homeShots").innerText = state.home_shots;
+                document.getElementById("awayShots").innerText = state.away_shots;
+            }
+            const shotsCheck = document.getElementById("showShotsCheck");
+            if (shotsCheck && document.activeElement !== shotsCheck) shotsCheck.checked = showShots;
+
+            // Team time-out
+            renderTimeout(state);
+
+            // Shoot-out
+            renderShootout(state);
+
             // Penalties
             renderPenalties("home", state.home_penalties);
             renderPenalties("away", state.away_penalties);
@@ -758,6 +1307,70 @@
             // Goals
             renderGoalsList("home", state.home_goals || []);
             renderGoalsList("away", state.away_goals || []);
+
+            // Aktuelle Aufstellung - Button-Zähler
+            const hRb = document.getElementById("editHomeRosterBtn");
+            const aRb = document.getElementById("editAwayRosterBtn");
+            if (hRb) hRb.innerText = `Heim-Kader bearbeiten (${(state.home_players || []).length})`;
+            if (aRb) aRb.innerText = `Gast-Kader bearbeiten (${(state.away_players || []).length})`;
+        }
+
+        function setGoalieBtn(team, val) {
+            const on = val !== false;
+            const b = document.getElementById(team + "GoalieBtn");
+            if (!b) return;
+            b.classList.toggle("off", !on);
+            b.innerText = on ? "🥅 Torwart: AN" : "🚫 Ohne Torwart";
+        }
+
+        function renderTimeout(state) {
+            const active = !!state.timeout_active;
+            const banner = document.getElementById("timeoutBanner");
+            banner.classList.toggle("active", active);
+            if (active) {
+                const tName = state.timeout_team === "home" ? state.home_name : state.away_name;
+                document.getElementById("timeoutBannerTeam").innerText = tName || "";
+                document.getElementById("timeoutBannerClock").innerText = formatTime(state.timeout_time_remaining || 0);
+            }
+            const hUsed = (state.home_timeouts_used || 0) >= 1;
+            const aUsed = (state.away_timeouts_used || 0) >= 1;
+            const hb = document.getElementById("timeoutHomeBtn");
+            const ab = document.getElementById("timeoutAwayBtn");
+            hb.disabled = active || hUsed;
+            ab.disabled = active || aUsed;
+            hb.innerText = hUsed ? "Timeout Heim ✓" : "Timeout Heim";
+            ab.innerText = aUsed ? "Timeout Gast ✓" : "Timeout Gast";
+        }
+
+        function renderShootout(state) {
+            const active = !!state.shootout_active;
+            const h = state.home_shootout || [];
+            const a = state.away_shootout || [];
+            document.getElementById("shootoutControls").hidden = !active;
+            // During a shoot-out the break / time-out controls are irrelevant - hide them for room.
+            document.getElementById("breakBox").hidden = active;
+            document.getElementById("timeoutBox").hidden = active;
+            const btn = document.getElementById("shootoutToggleBtn");
+            btn.innerText = active ? "Penaltyschießen beenden" : "Penaltyschießen starten";
+            btn.classList.toggle("btn-danger", active);
+            const hGoals = h.filter(x => x.scored).length;
+            const aGoals = a.filter(x => x.scored).length;
+            document.getElementById("shootoutTally").innerText = `${hGoals} : ${aGoals}`;
+
+            const seq = document.getElementById("shootoutSequence");
+            const rows = Math.max(h.length, a.length);
+            if (rows === 0) {
+                seq.innerHTML = '<span style="color: var(--text-dim); font-size: 0.8rem;">Noch keine Schüsse</span>';
+                return;
+            }
+            let out = "";
+            for (let i = 0; i < rows; i++) {
+                const hs = h[i] ? (h[i].scored ? "✅" : "❌") : "·";
+                const as = a[i] ? (a[i].scored ? "✅" : "❌") : "·";
+                out += `<div class="item-row" style="border-left-color: var(--accent-purple);">` +
+                       `<span>#${i + 1}</span><span>Heim ${hs} &nbsp; Gast ${as}</span></div>`;
+            }
+            seq.innerHTML = out;
         }
 
         function renderPenalties(team, list) {
@@ -768,7 +1381,7 @@
             }
             container.innerHTML = list.map((p, idx) => `
                 <div class="item-row">
-                    <span><strong>#${p.player}</strong> (${formatTime(p.remaining_seconds)})</span>
+                    <span><strong>#${escapeHtml(p.player)}</strong> (${formatTime(p.remaining_seconds)})</span>
                     <button class="item-del" onclick="sendCmd('PENALTY_REMOVE', {team: '${team}', index: ${idx}})">✕</button>
                 </div>
             `).join('');
@@ -782,17 +1395,126 @@
             }
             container.innerHTML = list.map((g, idx) => `
                 <div class="item-row" style="border-left-color: var(--accent-green);">
-                    <span><strong>${g.time}</strong> (D${g.period}): ${g.player}</span>
+                    <span><strong>${escapeHtml(g.time)}</strong> (D${escapeHtml(g.period)}): ${escapeHtml(g.player)}</span>
                     <button class="item-del" onclick="sendCmd('GOAL_REMOVE', {team: '${team}', index: ${idx}})">✕</button>
                 </div>
             `).join('');
         }
 
-        function addPenalty(team, seconds) {
-            const input = document.getElementById(`${team}PenPlayer`);
-            const player = input.value.trim() || "00";
-            sendCmd("PENALTY_ADD", { team, player, seconds });
-            input.value = "";
+        // ================= PENALTY MODAL (player + duration) =================
+        function penaltyDurationSeconds() {
+            const m = Math.max(0, Math.min(99, parseInt(document.getElementById("penaltyMinInput").value, 10) || 0));
+            const s = Math.max(0, Math.min(59, parseInt(document.getElementById("penaltySecInput").value, 10) || 0));
+            return m * 60 + s;
+        }
+
+        function setPenaltyDuration(totalSeconds) {
+            document.getElementById("penaltyMinInput").value = Math.floor(totalSeconds / 60);
+            document.getElementById("penaltySecInput").value = totalSeconds % 60;
+        }
+
+        function openPenaltyModal(team, seconds) {
+            pendingPenaltyTeam = team;
+            const teamName = team === "home" ? currentState.home_name : currentState.away_name;
+            const players = team === "home" ? (currentState.home_players || []) : (currentState.away_players || []);
+
+            setPenaltyDuration(seconds && seconds > 0 ? seconds : 120);
+
+            document.getElementById("penaltyModalTitle").innerText = `⏱️ Strafe für ${teamName}`;
+            document.getElementById("manualPenaltyInput").value = "";
+
+            const box = document.getElementById("penaltyRosterButtons");
+            box.innerHTML = "";
+            if (players.length > 0) {
+                sortRoster(players).forEach(p => {
+                    const { num, name } = splitPlayer(p);
+                    const b = document.createElement("button");
+                    b.type = "button";
+                    b.className = "scorer-row";
+                    b.innerHTML =
+                        `<span class="scorer-num${num === null ? " no-num" : ""}">${num === null ? "–" : escapeHtml(String(num))}</span>` +
+                        `<span>${escapeHtml(name || p)}</span>`;
+                    b.addEventListener("click", () => submitPenalty(p));
+                    box.appendChild(b);
+                });
+            } else {
+                box.innerHTML = '<span style="color: var(--text-dim); font-size: 0.85rem;">Kein Kader hinterlegt. Spieler manuell eingeben:</span>';
+            }
+
+            document.getElementById("penaltyModal").classList.add("active");
+            setTimeout(() => {
+                const t = document.getElementById("manualPenaltyInput");
+                t.focus();
+                if (t.select) t.select();
+            }, 100);
+        }
+
+        function submitPenalty(playerText) {
+            const seconds = penaltyDurationSeconds();
+            if (!seconds) {
+                alert("Bitte eine Strafzeit größer als 0 eingeben.");
+                return;
+            }
+            sendCmd("PENALTY_ADD", { team: pendingPenaltyTeam, player: playerText || "00", seconds });
+            closePenaltyModal();
+        }
+
+        function confirmPenalty() {
+            const manual = document.getElementById("manualPenaltyInput").value.trim();
+            submitPenalty(manual || "00");
+        }
+
+        function closePenaltyModal() {
+            document.getElementById("penaltyModal").classList.remove("active");
+            pendingPenaltyTeam = null;
+        }
+
+        // ================= GOALIE / TIMEOUT / SHOOTOUT / CLOCK / RESET =================
+        function closeModal(id) {
+            document.getElementById(id).classList.remove("active");
+        }
+
+        function toggleGoalie(team) {
+            const cur = team === "home" ? currentState.home_goalie : currentState.away_goalie;
+            sendCmd("GOALIE_SET", { team, active: cur === false });
+        }
+
+        function openTimeSetModal() {
+            const rem = currentState.time_remaining || 0;
+            document.getElementById("timeSetMin").value = Math.floor(rem / 60);
+            document.getElementById("timeSetSec").value = rem % 60;
+            document.getElementById("timeSetModal").classList.add("active");
+            setTimeout(() => {
+                const el = document.getElementById("timeSetMin");
+                el.focus();
+                if (el.select) el.select();
+            }, 100);
+        }
+
+        function confirmTimeSet() {
+            const m = Math.max(0, Math.min(99, parseInt(document.getElementById("timeSetMin").value, 10) || 0));
+            const s = Math.max(0, Math.min(59, parseInt(document.getElementById("timeSetSec").value, 10) || 0));
+            sendCmd("TIMER_SET_REMAINING", { seconds: m * 60 + s });
+            closeModal("timeSetModal");
+        }
+
+        function newGame() {
+            if (!confirm("Spielstand, Uhr, Strafen, Tore, Timeouts und Penaltyschießen zurücksetzen?\nTeams, Kader und Sponsoren bleiben erhalten.")) return;
+            sendCmd("GAME_RESET");
+        }
+
+        function requestTimeout(team) {
+            if (currentState.timeout_active) return;
+            const used = team === "home" ? (currentState.home_timeouts_used || 0) : (currentState.away_timeouts_used || 0);
+            if (used >= 1) {
+                alert("Dieses Team hat sein Timeout in diesem Spiel bereits genommen.");
+                return;
+            }
+            sendCmd("TIMEOUT_START", { team });
+        }
+
+        function toggleShootout() {
+            sendCmd("SHOOTOUT_MODE_SET", { active: !currentState.shootout_active });
         }
 
         function updateTeamDetails(team) {
@@ -817,10 +1539,19 @@
             document.getElementById("manualScorerInput").value = "";
 
             const rosterBox = document.getElementById("scorerRosterButtons");
+            rosterBox.innerHTML = "";
             if (players.length > 0) {
-                rosterBox.innerHTML = players.map(p => `
-                    <button type="button" class="btn" style="padding: 6px 12px; font-size: 0.85rem;" onclick="selectScorerAndSubmit('${p}')">${p}</button>
-                `).join('');
+                sortRoster(players).forEach(p => {
+                    const { num, name } = splitPlayer(p);
+                    const b = document.createElement("button");
+                    b.type = "button";
+                    b.className = "scorer-row";
+                    b.innerHTML =
+                        `<span class="scorer-num${num === null ? " no-num" : ""}">${num === null ? "–" : escapeHtml(String(num))}</span>` +
+                        `<span>${escapeHtml(name || p)}</span>`;
+                    b.addEventListener("click", () => selectScorerAndSubmit(p));
+                    rosterBox.appendChild(b);
+                });
             } else {
                 rosterBox.innerHTML = '<span style="color: var(--text-dim); font-size: 0.85rem;">Kein Kader hinterlegt. Spieler manuell eingeben:</span>';
             }
@@ -862,7 +1593,7 @@
             const awaySel = document.getElementById("awayTeamSelect");
             let opts = '<option value="">-- Team-Vorlage wählen --</option>';
             savedTeams.forEach(t => {
-                opts += `<option value="${t.id}">${t.name}</option>`;
+                opts += `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`;
             });
             homeSel.innerHTML = opts;
             awaySel.innerHTML = opts;
@@ -889,10 +1620,9 @@
             const name = document.getElementById("formTeamName").value.trim();
             const color = document.getElementById("formTeamColor").value;
             const textColor = document.getElementById("formTeamTextColor").value;
-            const playersRaw = document.getElementById("formTeamPlayers").value.trim();
             const logoFile = document.getElementById("formTeamLogo").files[0];
 
-            const playersArr = playersRaw ? playersRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean) : [];
+            const playersArr = formRoster.getPlayers();
 
             const formData = new FormData();
             if (id) formData.append("id", id);
@@ -916,8 +1646,29 @@
             document.getElementById("formTeamName").value = "";
             document.getElementById("formTeamColor").value = "#ef4444";
             document.getElementById("formTeamTextColor").value = "#ffffff";
-            document.getElementById("formTeamPlayers").value = "";
             document.getElementById("formTeamLogo").value = "";
+            formRoster.clear();
+            document.getElementById("formLogoPreview").hidden = true;
+            document.getElementById("teamEditHint").hidden = true;
+            document.getElementById("teamSaveBtn").innerText = "💾 Team speichern";
+        }
+
+        function editTeam(id) {
+            const t = savedTeams.find(x => x.id === id);
+            if (!t) return;
+            document.getElementById("formTeamId").value = t.id;
+            document.getElementById("formTeamName").value = t.name || "";
+            document.getElementById("formTeamColor").value = t.color || "#ef4444";
+            document.getElementById("formTeamTextColor").value = t.text_color || "#ffffff";
+            document.getElementById("formTeamLogo").value = "";
+            formRoster.setPlayers(t.players || []);
+            const prev = document.getElementById("formLogoPreview");
+            const url = safeUploadUrl(t.logo_url);
+            if (url) { prev.src = url; prev.hidden = false; } else { prev.hidden = true; }
+            document.getElementById("teamEditHint").hidden = !url;
+            document.getElementById("teamSaveBtn").innerText = "💾 Änderungen speichern";
+            closeAllTeamsModal();
+            document.getElementById("teamUploadForm").scrollIntoView({ behavior: "smooth", block: "center" });
         }
 
         function openAllTeamsModal() {
@@ -934,28 +1685,48 @@
                 container.innerHTML = '<span style="color: var(--text-dim);">Noch keine Teams gespeichert.</span>';
                 return;
             }
-            container.innerHTML = savedTeams.map(t => `
+            container.innerHTML = savedTeams.map(t => {
+                const id = escapeHtml(t.id);
+                const logo = escapeHtml(safeUploadUrl(t.logo_url));
+                return `
                 <div style="display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 0.6rem 0.9rem; border-radius: 8px; border: 1px solid var(--border);">
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        ${t.logo_url ? `<img src="${t.logo_url}" style="width: 32px; height: 32px; object-fit: contain;">` : ''}
+                        ${logo ? `<img src="${logo}" style="width: 32px; height: 32px; object-fit: contain;">` : ''}
                         <div>
-                            <strong>${t.name}</strong>
+                            <strong>${escapeHtml(t.name)}</strong>
                             <div style="font-size: 0.75rem; color: var(--text-dim);">${(t.players || []).length} Spieler im Kader</div>
                         </div>
                     </div>
                     <div style="display: flex; gap: 0.4rem;">
-                        <button class="btn btn-primary" style="padding: 4px 8px; font-size: 0.75rem;" onclick="loadTeamPreset('home', '${t.id}'); closeAllTeamsModal();">Als Heim</button>
-                        <button class="btn btn-info" style="padding: 4px 8px; font-size: 0.75rem;" onclick="loadTeamPreset('away', '${t.id}'); closeAllTeamsModal();">Als Gast</button>
-                        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="deleteTeam('${t.id}')">🗑</button>
+                        <button class="btn btn-primary" style="padding: 4px 8px; font-size: 0.75rem;" onclick="loadTeamPreset('home', '${id}'); closeAllTeamsModal();">Als Heim</button>
+                        <button class="btn btn-info" style="padding: 4px 8px; font-size: 0.75rem;" onclick="loadTeamPreset('away', '${id}'); closeAllTeamsModal();">Als Gast</button>
+                        <button class="btn" style="padding: 4px 8px; font-size: 0.75rem;" onclick="editTeam('${id}')">✏️</button>
+                        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="deleteTeam('${id}')">🗑</button>
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
         async function deleteTeam(id) {
             if (!confirm("Team wirklich löschen?")) return;
             await fetch(`/api/teams/${id}`, { method: "DELETE" });
             await fetchTeams();
+        }
+
+        // ================= AKTUELLE AUFSTELLUNG (live roster) =================
+        let rosterModalSide = null;
+        function openRosterModal(side) {
+            rosterModalSide = side;
+            const nm = side === "home" ? (currentState.home_name || "Heim") : (currentState.away_name || "Gast");
+            document.getElementById("rosterModalTitle").innerText = `🧍 Kader – ${nm}`;
+            modalRoster.setPlayers((side === "home" ? currentState.home_players : currentState.away_players) || []);
+            document.getElementById("rosterModal").classList.add("active");
+        }
+        function applyRosterModal() {
+            if (!rosterModalSide) return;
+            sendCmd("TEAM_SET", { team: rosterModalSide, players: modalRoster.getPlayers() });
+            closeModal("rosterModal");
+            rosterModalSide = null;
         }
 
         // ================= SPONSORS API =================
@@ -971,8 +1742,8 @@
                 }
                 list.innerHTML = sponsors.map(s => `
                     <div class="sponsor-item">
-                        <img src="${s.url}" alt="${s.name}">
-                        <button class="sponsor-del" onclick="deleteSponsor('${s.id}')">✕</button>
+                        <img src="${escapeHtml(safeUploadUrl(s.url))}" alt="${escapeHtml(s.name || '')}">
+                        <button class="sponsor-del" onclick="deleteSponsor('${escapeHtml(s.id)}')">✕</button>
                     </div>
                 `).join('');
             } catch (e) {
@@ -998,6 +1769,19 @@
             await fetchSponsors();
         }
 
+        // ================= TAB NAVIGATION =================
+        function switchTab(name) {
+            document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            const panel = document.getElementById("tab-" + name);
+            const btn = document.getElementById("tabBtn-" + name);
+            if (!panel || !btn) { return switchTab("live"); }
+            panel.classList.add("active");
+            btn.classList.add("active");
+            document.body.classList.toggle("fit-live", name === "live");
+            try { localStorage.setItem("controlTab", name); } catch (e) {}
+        }
+
         // KEYBOARD SHORTCUTS
         window.addEventListener("keydown", (e) => {
             if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
@@ -1009,14 +1793,19 @@
                 openScorerModal("home", 1);
             } else if (e.key === "a" || e.key === "A") {
                 openScorerModal("away", 1);
-            } else if (e.key === "b" || e.key === "B") {
-                sendCmd("BUZZER_TRIGGER");
             } else if (["1", "2", "3"].includes(e.key)) {
                 sendCmd("PERIOD_SET", { period: e.key });
             }
         });
 
         // INIT
+        const formRoster = createRosterEditor(document.getElementById("formRosterEditor"));
+        const modalRoster = createRosterEditor(document.getElementById("rosterModalEditor"));
+
+        let initialTab = "live";
+        try { initialTab = localStorage.getItem("controlTab") || "live"; } catch (e) {}
+        switchTab(initialTab);
+
         connectWS();
         fetchTeams();
         fetchSponsors();
