@@ -1159,21 +1159,6 @@ async def get_board_page():
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
-@app.get("/board2", response_class=HTMLResponse)
-async def get_board2_page():
-    # Redesigned broadcast-style scoreboard (draft). Same WebSocket/state feed
-    # as /board - run both side by side to compare.
-    path = os.path.join(BASE_DIR, "templates", "board2.html")
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/board3", response_class=HTMLResponse)
-async def get_board3_page():
-    # Like /board2 but with the top (scoreboard) and middle (scorers) panels swapped.
-    path = os.path.join(BASE_DIR, "templates", "board3.html")
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
 @app.get("/", response_class=HTMLResponse)
 async def get_index_page():
     return """
