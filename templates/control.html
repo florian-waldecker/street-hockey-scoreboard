@@ -678,9 +678,14 @@
                 </div>
                 <div class="btn-group" style="gap: 0.35rem;">
                     <button class="btn btn-purple" id="breakToggleBtn" onclick="sendCmd('BREAK_TIMER_TOGGLE')">▶ Start/Stop</button>
-                    <button class="btn" onclick="sendCmd('BREAK_SET_DURATION', {duration: 180})">3m</button>
-                    <button class="btn" onclick="sendCmd('BREAK_SET_DURATION', {duration: 300})">5m</button>
-                    <button class="btn" onclick="sendCmd('BREAK_SET_DURATION', {duration: 600})">10m</button>
+                    <button class="btn" onclick="setBreakDuration(5)">5 Minuten</button>
+                    <button class="btn" onclick="setBreakDuration(10)">10 Minuten</button>
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem;">
+                        <input type="number" id="breakDurationInput" min="1" max="60" step="1" placeholder="Min."
+                               class="input-text" style="font-size: 0.8rem; width: 4rem;"
+                               onchange="setBreakDuration(this.value)">
+                        Min.
+                    </label>
                     <button class="btn btn-danger" onclick="sendCmd('BREAK_MODE_SET', {active: false})">Ende</button>
                 </div>
             </div>
@@ -799,10 +804,73 @@
             <button class="btn" style="max-width: 90px;" onclick="sendCmd('PERIOD_DURATION_SET', {duration: 900})">15 min</button>
             <button class="btn" style="max-width: 90px;" onclick="sendCmd('PERIOD_DURATION_SET', {duration: 1200})">20 min</button>
         </div>
+        <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 0.85rem; color: var(--text-dim); min-width: 6rem;">Overtime-Dauer:</span>
+            <button class="btn" style="max-width: 90px;" onclick="sendCmd('OVERTIME_DURATION_SET', {duration: 180})">3 min</button>
+            <button class="btn" style="max-width: 90px;" onclick="sendCmd('OVERTIME_DURATION_SET', {duration: 300})">5 min</button>
+            <button class="btn" style="max-width: 90px;" onclick="sendCmd('OVERTIME_DURATION_SET', {duration: 600})">10 min</button>
+            <label style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem;">
+                <input type="number" id="overtimeDurationInput" min="1" max="60" step="1"
+                       class="input-text" style="font-size: 0.8rem; width: 4.5rem;"
+                       onchange="setOvertimeDuration(this.value)">
+                Min.
+            </label>
+            <span id="overtimeDurationCurrent" style="font-size: 0.8rem; color: var(--text-dim);"></span>
+        </div>
+        <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 0.85rem; color: var(--text-dim); min-width: 6rem;">Timeout-Dauer:</span>
+            <button class="btn" style="max-width: 90px;" onclick="setTimeoutDuration(30)">30 s</button>
+            <button class="btn" style="max-width: 90px;" onclick="setTimeoutDuration(45)">45 s</button>
+            <button class="btn" style="max-width: 90px;" onclick="setTimeoutDuration(60)">60 s</button>
+            <label style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem;">
+                <input type="number" id="timeoutDurationInput" min="5" max="600" step="5"
+                       class="input-text" style="font-size: 0.8rem; width: 4.5rem;"
+                       onchange="setTimeoutDuration(this.value)">
+                Sek.
+            </label>
+            <span id="timeoutDurationCurrent" style="font-size: 0.8rem; color: var(--text-dim);"></span>
+        </div>
         <label style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; cursor: pointer;">
             <input type="checkbox" id="showShotsCheck" style="width: auto;" onchange="sendCmd('DISPLAY_SET', {show_shots: this.checked})">
             Schüsse (Shots on Goal) auf Bedienfeld &amp; Großanzeige einblenden
         </label>
+    </div>
+
+    <!-- STRAFEN-SOUND -->
+    <div class="mgmt-card">
+        <div class="mgmt-title"><span>🔔 STRAFEN-SOUND</span></div>
+        <p style="font-size: 0.8rem; color: var(--text-dim); margin: 0;">
+            Ein kurzer Ton (max. 20 s), den die Großanzeige rund um das Ablaufen einer
+            Strafe abspielt. Im Regelwerk ist kein Signal vorgeschrieben &ndash; üblich ist
+            ein Hinweiston <strong>genau bei Ablauf</strong> (der bestrafte Spieler darf
+            zurück aufs Feld) oder ein paar Sekunden vorher als Vorwarnung.
+        </p>
+        <p style="font-size: 0.75rem; color: var(--text-dim); margin: 0;">
+            ℹ️ Ton (Strafen &amp; Torhymne) läuft auf der <strong>Großanzeige</strong>. Browser
+            geben Audio erst nach einer Interaktion frei &ndash; beim Einrichten der Anzeige
+            also einmal ins Bild klicken oder Vollbild aktivieren.
+        </p>
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <input type="file" id="penaltySoundFile" accept="audio/*" class="input-text" style="font-size: 0.8rem;" onchange="onPenaltySoundPicked()">
+            <button type="button" class="btn" id="penaltySoundSaveBtn" onclick="uploadPenaltySound()" style="padding: 4px 10px; font-size: 0.8rem;" disabled>Hochladen</button>
+            <button type="button" class="btn" id="penaltySoundTestBtn" onclick="sendCmd('PENALTY_SOUND_TEST')" style="padding: 4px 10px; font-size: 0.8rem;" hidden>▶ Test</button>
+            <button type="button" class="btn btn-danger" id="penaltySoundRemoveBtn" onclick="deletePenaltySound()" style="padding: 4px 10px; font-size: 0.8rem;" hidden>Entfernen</button>
+        </div>
+        <span id="penaltySoundHint" style="font-size: 0.75rem; color: var(--text-dim);"></span>
+        <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 0.85rem; color: var(--text-dim); min-width: 6rem;">Abspielen:</span>
+            <button class="btn" style="max-width: 110px;" onclick="setPenaltySoundLead(0)">bei Ablauf</button>
+            <button class="btn" style="max-width: 110px;" onclick="setPenaltySoundLead(3)">3 s vorher</button>
+            <button class="btn" style="max-width: 110px;" onclick="setPenaltySoundLead(5)">5 s vorher</button>
+            <button class="btn" style="max-width: 110px;" onclick="setPenaltySoundLead(10)">10 s vorher</button>
+            <label style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem;">
+                <input type="number" id="penaltySoundLeadInput" min="0" max="30" step="1"
+                       class="input-text" style="font-size: 0.8rem; width: 4rem;"
+                       onchange="setPenaltySoundLead(this.value)">
+                s vorher
+            </label>
+            <span id="penaltySoundLeadCurrent" style="font-size: 0.8rem; color: var(--text-dim);"></span>
+        </div>
     </div>
 
     <!-- AKTUELLE AUFSTELLUNG (Kader der geladenen Teams) -->
@@ -844,6 +912,42 @@
                         <img id="formLogoPreview" src="" alt="" hidden style="width: 34px; height: 34px; object-fit: contain; border-radius: 4px; background: #0d1424;">
                     </div>
                     <span id="teamEditHint" hidden style="font-size: 0.75rem; color: var(--text-dim);">Vorhandenes Logo bleibt erhalten; eine neue Datei ersetzt es.</span>
+                </div>
+                <div>
+                    <span style="font-size: 0.8rem; color: var(--text-dim);">Logo-Rahmen:</span>
+                    <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; font-size: 0.8rem;">
+                        <select id="formLogoBorderMode" class="input-text" style="font-size: 0.8rem; width: auto;">
+                            <option value="none">Kein Rahmen</option>
+                            <option value="solid">Feste Linie</option>
+                            <option value="glow">Glow</option>
+                        </select>
+                        <label style="display: flex; align-items: center; gap: 4px;">
+                            Dicke
+                            <input type="number" id="formLogoBorderWidth" min="0" max="40" step="1" value="4"
+                                   class="input-text" style="font-size: 0.8rem; width: 4rem;">
+                            px
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px;">
+                            Farbe
+                            <input type="color" id="formLogoBorderColor" value="#ffffff"
+                                   style="cursor:pointer; width:30px; height:30px; border:none; background:none;">
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" id="formLogoBorderTeamColor" checked>
+                            Teamfarbe
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <span style="font-size: 0.8rem; color: var(--text-dim);">Torhymne (max. 40 s &ndash; MP3 / OGG / WAV):</span>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <input type="file" id="formTeamAnthem" accept="audio/*" class="input-text" style="font-size: 0.8rem;" onchange="onAnthemFilePicked()">
+                        <button type="button" class="btn" id="formAnthemPreviewBtn" hidden onclick="toggleAnthemPreview()" style="padding: 4px 8px; font-size: 0.8rem;">&#9654; Anhören</button>
+                        <button type="button" class="btn btn-danger" id="formAnthemRemoveBtn" hidden onclick="markAnthemForRemoval()" style="padding: 4px 8px; font-size: 0.8rem;">Entfernen</button>
+                    </div>
+                    <span id="formAnthemHint" style="font-size: 0.75rem; color: var(--text-dim);"></span>
+                    <input type="hidden" id="formAnthemRemove" value="">
+                    <input type="hidden" id="formAnthemSeconds" value="">
                 </div>
                 <div>
                     <span style="font-size: 0.8rem; color: var(--text-dim);">Kader (Nr. + Name):</span>
@@ -1197,6 +1301,93 @@
             }
         }
 
+        function setBreakDuration(minutes) {
+            const m = Math.max(1, Math.min(60, parseInt(minutes, 10) || 5));
+            sendCmd('BREAK_SET_DURATION', { duration: m * 60 });
+        }
+
+        function setOvertimeDuration(minutes) {
+            const m = Math.max(1, Math.min(60, parseInt(minutes, 10) || 5));
+            sendCmd('OVERTIME_DURATION_SET', { duration: m * 60 });
+        }
+
+        // ---- Strafen-Sound ----
+        let penaltySoundSeconds = "";
+
+        function onPenaltySoundPicked() {
+            const input = document.getElementById("penaltySoundFile");
+            const hint = document.getElementById("penaltySoundHint");
+            const saveBtn = document.getElementById("penaltySoundSaveBtn");
+            penaltySoundSeconds = "";
+            saveBtn.disabled = true;
+            const file = input.files[0];
+            if (!file) { hint.textContent = ""; return; }
+            const probe = new Audio();
+            probe.preload = "metadata";
+            probe.onloadedmetadata = () => {
+                const dur = probe.duration || 0;
+                URL.revokeObjectURL(probe.src);
+                if (!isFinite(dur) || dur <= 0) {
+                    hint.style.color = "#f87171";
+                    hint.textContent = "Dauer konnte nicht gelesen werden – andere Datei versuchen.";
+                    input.value = ""; return;
+                }
+                if (dur > 20.5) {
+                    hint.style.color = "#f87171";
+                    hint.textContent = `Zu lang: ${dur.toFixed(1)} s (max. 20 s).`;
+                    input.value = ""; return;
+                }
+                penaltySoundSeconds = dur.toFixed(2);
+                hint.style.color = "var(--text-dim)";
+                hint.textContent = `Bereit: ${file.name} (${dur.toFixed(1)} s) – auf „Hochladen" klicken.`;
+                saveBtn.disabled = false;
+            };
+            probe.onerror = () => {
+                hint.style.color = "#f87171";
+                hint.textContent = "Audiodatei kann nicht gelesen werden.";
+                input.value = "";
+            };
+            probe.src = URL.createObjectURL(file);
+        }
+
+        async function uploadPenaltySound() {
+            const file = document.getElementById("penaltySoundFile").files[0];
+            if (!file) return;
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("audio_seconds", penaltySoundSeconds || "");
+            try {
+                const res = await fetch("/api/penalty-sound", { method: "POST", body: fd });
+                if (!res.ok) {
+                    let msg = "Upload fehlgeschlagen";
+                    try { msg = (await res.json()).detail || msg; } catch (e) {}
+                    alert(msg); return;
+                }
+                document.getElementById("penaltySoundFile").value = "";
+                document.getElementById("penaltySoundSaveBtn").disabled = true;
+                const hint = document.getElementById("penaltySoundHint");
+                hint.style.color = "var(--text-dim)";
+                hint.textContent = "Strafen-Sound gespeichert.";
+            } catch (e) {
+                alert("Upload fehlgeschlagen");
+            }
+        }
+
+        async function deletePenaltySound() {
+            if (!confirm("Strafen-Sound entfernen?")) return;
+            try { await fetch("/api/penalty-sound", { method: "DELETE" }); } catch (e) {}
+        }
+
+        function setPenaltySoundLead(seconds) {
+            const s = Math.max(0, Math.min(30, parseInt(seconds, 10) || 0));
+            sendCmd("PENALTY_SOUND_SET", { lead_seconds: s });
+        }
+
+        function setTimeoutDuration(seconds) {
+            const s = Math.max(5, Math.min(600, parseInt(seconds, 10) || 60));
+            sendCmd('TIMEOUT_SET_DURATION', { seconds: s });
+        }
+
         function formatTime(sec) {
             const m = Math.floor(sec / 60);
             const s = sec % 60;
@@ -1238,6 +1429,10 @@
             const breakBanner = document.getElementById("breakBanner");
             const breakToggleBtn = document.getElementById("breakToggleBtn");
             document.getElementById("breakClockDisplay").innerText = formatTime(state.break_time_remaining || 0);
+            const breakDurInput = document.getElementById("breakDurationInput");
+            if (breakDurInput && document.activeElement !== breakDurInput) {
+                breakDurInput.value = Math.round((state.break_duration || 300) / 60);
+            }
 
             if (state.break_mode) {
                 breakBanner.classList.add("active");
@@ -1293,6 +1488,36 @@
             }
             const shotsCheck = document.getElementById("showShotsCheck");
             if (shotsCheck && document.activeElement !== shotsCheck) shotsCheck.checked = showShots;
+
+            // Overtime duration (Vorbereitung)
+            const otDur = state.overtime_duration || 300;
+            const otDurInput = document.getElementById("overtimeDurationInput");
+            if (otDurInput && document.activeElement !== otDurInput) otDurInput.value = Math.round(otDur / 60);
+            const otDurCur = document.getElementById("overtimeDurationCurrent");
+            if (otDurCur) otDurCur.innerText = "aktuell: " + formatTime(otDur);
+
+            // Team time-out duration (Vorbereitung)
+            const toDur = state.timeout_duration || 60;
+            const toDurInput = document.getElementById("timeoutDurationInput");
+            if (toDurInput && document.activeElement !== toDurInput) toDurInput.value = toDur;
+            const toDurCur = document.getElementById("timeoutDurationCurrent");
+            if (toDurCur) toDurCur.innerText = "aktuell: " + formatTime(toDur);
+
+            // Penalty-expiry sound (Vorbereitung)
+            const psHas = !!state.penalty_sound_url;
+            const psTestBtn = document.getElementById("penaltySoundTestBtn");
+            const psRemoveBtn = document.getElementById("penaltySoundRemoveBtn");
+            if (psTestBtn) psTestBtn.hidden = !psHas;
+            if (psRemoveBtn) psRemoveBtn.hidden = !psHas;
+            const psLead = state.penalty_sound_lead_seconds || 0;
+            const psLeadInput = document.getElementById("penaltySoundLeadInput");
+            if (psLeadInput && document.activeElement !== psLeadInput) psLeadInput.value = psLead;
+            const psLeadCur = document.getElementById("penaltySoundLeadCurrent");
+            if (psLeadCur) {
+                psLeadCur.textContent = psHas
+                    ? (psLead === 0 ? "aktiv: bei Ablauf" : `aktiv: ${psLead} s vor Ablauf`)
+                    : "kein Sound hinterlegt";
+            }
 
             // Team time-out
             renderTimeout(state);
@@ -1608,8 +1833,12 @@
                 team: targetSide,
                 name: t.name,
                 logo: t.logo_url || "",
+                logo_border_mode: t.logo_border_mode || "none",
+                logo_border_width: (t.logo_border_width ?? 4),
+                logo_border_color: t.logo_border_color || "",
                 color: t.color || (targetSide === 'home' ? '#ef4444' : '#00d2ff'),
                 text_color: t.text_color || '#ffffff',
+                anthem: t.anthem_url || "",
                 players: t.players || []
             });
         }
@@ -1622,6 +1851,11 @@
             const textColor = document.getElementById("formTeamTextColor").value;
             const logoFile = document.getElementById("formTeamLogo").files[0];
 
+            const borderMode = document.getElementById("formLogoBorderMode").value;
+            const borderWidth = document.getElementById("formLogoBorderWidth").value || "0";
+            const borderUsesTeamColor = document.getElementById("formLogoBorderTeamColor").checked;
+            const borderColor = borderUsesTeamColor ? "" : document.getElementById("formLogoBorderColor").value;
+
             const playersArr = formRoster.getPlayers();
 
             const formData = new FormData();
@@ -1629,16 +1863,109 @@
             formData.append("name", name);
             formData.append("color", color);
             formData.append("text_color", textColor);
+            formData.append("logo_border_mode", borderMode);
+            formData.append("logo_border_width", borderWidth);
+            formData.append("logo_border_color", borderColor);
             formData.append("players_json", JSON.stringify(playersArr));
             if (logoFile) formData.append("logo_file", logoFile);
 
+            const anthemFile = document.getElementById("formTeamAnthem").files[0];
+            if (anthemFile) {
+                formData.append("anthem_file", anthemFile);
+                formData.append("anthem_seconds", document.getElementById("formAnthemSeconds").value || "");
+            }
+            if (document.getElementById("formAnthemRemove").value === "1") {
+                formData.append("remove_anthem", "1");
+            }
+
             try {
-                await fetch("/api/teams", { method: "POST", body: formData });
+                const res = await fetch("/api/teams", { method: "POST", body: formData });
+                if (!res.ok) {
+                    let msg = "Fehler beim Speichern des Teams";
+                    try { msg = (await res.json()).detail || msg; } catch (e) {}
+                    alert(msg);
+                    return;
+                }
                 resetTeamForm();
                 await fetchTeams();
             } catch (err) {
                 alert("Fehler beim Speichern des Teams");
             }
+        }
+
+        // ---- Torhymne: pick / validate (<= 40 s) / preview ----
+        let formAnthemPreviewEl = null;
+        let formAnthemExistingUrl = "";
+
+        function stopAnthemPreview() {
+            if (formAnthemPreviewEl) {
+                formAnthemPreviewEl.pause();
+                formAnthemPreviewEl = null;
+            }
+            const btn = document.getElementById("formAnthemPreviewBtn");
+            if (btn) btn.innerText = "▶ Anhören";
+        }
+
+        function onAnthemFilePicked() {
+            const input = document.getElementById("formTeamAnthem");
+            const hint = document.getElementById("formAnthemHint");
+            const previewBtn = document.getElementById("formAnthemPreviewBtn");
+            const seconds = document.getElementById("formAnthemSeconds");
+            stopAnthemPreview();
+            seconds.value = "";
+            const file = input.files[0];
+            if (!file) { previewBtn.hidden = !formAnthemExistingUrl; return; }
+
+            document.getElementById("formAnthemRemove").value = "";
+            const probe = new Audio();
+            probe.preload = "metadata";
+            probe.onloadedmetadata = () => {
+                const dur = probe.duration || 0;
+                URL.revokeObjectURL(probe.src);
+                if (!isFinite(dur) || dur <= 0) {
+                    hint.textContent = "Dauer konnte nicht gelesen werden – andere Datei versuchen.";
+                    input.value = ""; previewBtn.hidden = !formAnthemExistingUrl; return;
+                }
+                if (dur > 40.5) {
+                    hint.style.color = "#f87171";
+                    hint.textContent = `Zu lang: ${dur.toFixed(1)} s (max. 40 s). Bitte kürzere Datei wählen.`;
+                    input.value = ""; previewBtn.hidden = !formAnthemExistingUrl; return;
+                }
+                hint.style.color = "var(--text-dim)";
+                hint.textContent = `Neue Torhymne: ${file.name} (${dur.toFixed(1)} s)`;
+                seconds.value = dur.toFixed(2);
+                previewBtn.hidden = false;
+            };
+            probe.onerror = () => {
+                hint.style.color = "#f87171";
+                hint.textContent = "Audiodatei kann nicht gelesen werden.";
+                input.value = ""; previewBtn.hidden = !formAnthemExistingUrl;
+            };
+            probe.src = URL.createObjectURL(file);
+        }
+
+        function toggleAnthemPreview() {
+            const btn = document.getElementById("formAnthemPreviewBtn");
+            if (formAnthemPreviewEl) { stopAnthemPreview(); return; }
+            const file = document.getElementById("formTeamAnthem").files[0];
+            const src = file ? URL.createObjectURL(file) : safeUploadUrl(formAnthemExistingUrl);
+            if (!src) return;
+            formAnthemPreviewEl = new Audio(src);
+            formAnthemPreviewEl.onended = stopAnthemPreview;
+            formAnthemPreviewEl.play().then(() => { btn.innerText = "⏹ Stop"; }).catch(() => stopAnthemPreview());
+        }
+
+        function markAnthemForRemoval() {
+            stopAnthemPreview();
+            formAnthemExistingUrl = "";
+            document.getElementById("formTeamAnthem").value = "";
+            document.getElementById("formAnthemSeconds").value = "";
+            document.getElementById("formAnthemRemove").value = "1";
+            document.getElementById("formAnthemPreviewBtn").hidden = true;
+            document.getElementById("formAnthemRemoveBtn").hidden = true;
+            const hint = document.getElementById("formAnthemHint");
+            hint.style.color = "var(--text-dim)";
+            hint.textContent = "Torhymne wird beim Speichern entfernt.";
         }
 
         function resetTeamForm() {
@@ -1647,10 +1974,22 @@
             document.getElementById("formTeamColor").value = "#ef4444";
             document.getElementById("formTeamTextColor").value = "#ffffff";
             document.getElementById("formTeamLogo").value = "";
+            document.getElementById("formLogoBorderMode").value = "none";
+            document.getElementById("formLogoBorderWidth").value = "4";
+            document.getElementById("formLogoBorderColor").value = "#ffffff";
+            document.getElementById("formLogoBorderTeamColor").checked = true;
             formRoster.clear();
             document.getElementById("formLogoPreview").hidden = true;
             document.getElementById("teamEditHint").hidden = true;
             document.getElementById("teamSaveBtn").innerText = "💾 Team speichern";
+            stopAnthemPreview();
+            formAnthemExistingUrl = "";
+            document.getElementById("formTeamAnthem").value = "";
+            document.getElementById("formAnthemSeconds").value = "";
+            document.getElementById("formAnthemRemove").value = "";
+            document.getElementById("formAnthemPreviewBtn").hidden = true;
+            document.getElementById("formAnthemRemoveBtn").hidden = true;
+            document.getElementById("formAnthemHint").textContent = "";
         }
 
         function editTeam(id) {
@@ -1661,11 +2000,31 @@
             document.getElementById("formTeamColor").value = t.color || "#ef4444";
             document.getElementById("formTeamTextColor").value = t.text_color || "#ffffff";
             document.getElementById("formTeamLogo").value = "";
+            document.getElementById("formLogoBorderMode").value = t.logo_border_mode || "none";
+            document.getElementById("formLogoBorderWidth").value = (t.logo_border_width ?? 4);
+            const tBorderCol = t.logo_border_color || "";
+            document.getElementById("formLogoBorderTeamColor").checked = !tBorderCol;
+            document.getElementById("formLogoBorderColor").value = tBorderCol || t.color || "#ffffff";
             formRoster.setPlayers(t.players || []);
             const prev = document.getElementById("formLogoPreview");
             const url = safeUploadUrl(t.logo_url);
             if (url) { prev.src = url; prev.hidden = false; } else { prev.hidden = true; }
             document.getElementById("teamEditHint").hidden = !url;
+
+            // Torhymne
+            stopAnthemPreview();
+            document.getElementById("formTeamAnthem").value = "";
+            document.getElementById("formAnthemSeconds").value = "";
+            document.getElementById("formAnthemRemove").value = "";
+            formAnthemExistingUrl = safeUploadUrl(t.anthem_url);
+            const anthemHint = document.getElementById("formAnthemHint");
+            anthemHint.style.color = "var(--text-dim)";
+            anthemHint.textContent = formAnthemExistingUrl
+                ? "Torhymne vorhanden – neue Datei ersetzt sie."
+                : "Keine Torhymne hinterlegt.";
+            document.getElementById("formAnthemPreviewBtn").hidden = !formAnthemExistingUrl;
+            document.getElementById("formAnthemRemoveBtn").hidden = !formAnthemExistingUrl;
+
             document.getElementById("teamSaveBtn").innerText = "💾 Änderungen speichern";
             closeAllTeamsModal();
             document.getElementById("teamUploadForm").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1694,7 +2053,7 @@
                         ${logo ? `<img src="${logo}" style="width: 32px; height: 32px; object-fit: contain;">` : ''}
                         <div>
                             <strong>${escapeHtml(t.name)}</strong>
-                            <div style="font-size: 0.75rem; color: var(--text-dim);">${(t.players || []).length} Spieler im Kader</div>
+                            <div style="font-size: 0.75rem; color: var(--text-dim);">${(t.players || []).length} Spieler im Kader${t.anthem_url ? ' · 🎵 Torhymne' : ''}</div>
                         </div>
                     </div>
                     <div style="display: flex; gap: 0.4rem;">

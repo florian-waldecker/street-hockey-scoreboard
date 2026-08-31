@@ -17,6 +17,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 SPONSORS_UPLOAD_DIR = os.path.join(UPLOAD_DIR, "sponsors")
+ANTHEMS_UPLOAD_DIR = os.path.join(UPLOAD_DIR, "anthems")
+SFX_UPLOAD_DIR = os.path.join(UPLOAD_DIR, "sfx")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 TEAMS_FILE = os.path.join(DATA_DIR, "teams.json")
 SPONSORS_FILE = os.path.join(DATA_DIR, "sponsors.json")
@@ -25,12 +27,21 @@ GAME_STATE_FILE = os.path.join(DATA_DIR, "game_state.json")
 os.makedirs(STATIC_DIR, exist_ok=True)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(SPONSORS_UPLOAD_DIR, exist_ok=True)
+os.makedirs(ANTHEMS_UPLOAD_DIR, exist_ok=True)
+os.makedirs(SFX_UPLOAD_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # --- Upload limits -----------------------------------------------------------
 ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_PLAYERS_PER_TEAM = 40
+
+# Goal anthem (Torhymne): one short audio clip per team, played on the boards
+# when that team scores. Hard-capped at 40 s (enforced in the browser before
+# upload; the byte cap here is the server-side backstop).
+ALLOWED_AUDIO_EXTS = {".mp3", ".ogg", ".oga", ".wav", ".m4a", ".aac", ".webm"}
+MAX_AUDIO_BYTES = 8 * 1024 * 1024  # 8 MB
+MAX_ANTHEM_SECONDS = 40
 
 # Real-hockey rule: a team can be at most two players short at once, so only the
 # first two penalties per side run down while the rest wait ("stacked").
@@ -59,6 +70,21 @@ def clean_text(value: Any, max_len: int = 40) -> str:
     text = text.replace("<", "").replace(">", "")
     text = _CONTROL_CHARS.sub("", text)
     return text.strip()[:max_len]
+
+
+_LOGO_BORDER_MODES = {"none", "solid", "glow"}
+
+
+def _clean_border_mode(value: Any) -> str:
+    v = str(value if value is not None else "").strip().lower()
+    return v if v in _LOGO_BORDER_MODES else "none"
+
+
+def _clean_border_width(value: Any) -> int:
+    try:
+        return max(0, min(40, int(float(value))))
+    except (TypeError, ValueError):
+        return 0
 
 
 def sanitise_id(value: Optional[str]) -> str:
@@ -161,6 +187,41 @@ async def read_validated_image(upload: UploadFile) -> Tuple[bytes, str]:
     return contents, ext
 
 
+async def read_validated_audio(upload: UploadFile) -> Tuple[bytes, str]:
+    ext = os.path.splitext(upload.filename or "")[1].lower()
+    if ext not in ALLOWED_AUDIO_EXTS:
+        raise HTTPException(status_code=400,
+                            detail=f"Audioformat '{ext or '?'}' nicht erlaubt (erlaubt: MP3, OGG, WAV, M4A, AAC)")
+    contents = await upload.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="Leere Datei")
+    if len(contents) > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=400, detail="Audiodatei zu groß (max. 8 MB)")
+    return contents, ext
+
+
+def _delete_anthem_file(anthem_url: str):
+    """Best-effort removal of a stored goal-anthem clip."""
+    if anthem_url and anthem_url.startswith("/uploads/anthems/"):
+        path = os.path.join(ANTHEMS_UPLOAD_DIR, os.path.basename(anthem_url))
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except Exception:
+                pass
+
+
+def _delete_sfx_file(url: str):
+    """Best-effort removal of a stored sound-effect clip."""
+    if url and url.startswith("/uploads/sfx/"):
+        path = os.path.join(SFX_UPLOAD_DIR, os.path.basename(url))
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except Exception:
+                pass
+
+
 # ==========================================
 # SCOREBOARD STATE MODEL
 # ==========================================
@@ -169,8 +230,12 @@ class ScoreboardState:
         # Home
         self.home_name: str = "HEIM"
         self.home_logo: str = ""
+        self.home_logo_border_mode: str = "none"   # none | solid | glow
+        self.home_logo_border_width: int = 4
+        self.home_logo_border_color: str = ""      # empty -> board falls back to team colour
         self.home_color: str = "#ef4444"
         self.home_text_color: str = "#ffffff"
+        self.home_anthem: str = ""                  # goal-anthem audio URL
         self.home_score: int = 0
         self.home_shots: int = 0
         self.home_penalties: List[Dict[str, Any]] = []
@@ -180,8 +245,12 @@ class ScoreboardState:
         # Away
         self.away_name: str = "GAST"
         self.away_logo: str = ""
+        self.away_logo_border_mode: str = "none"
+        self.away_logo_border_width: int = 4
+        self.away_logo_border_color: str = ""
         self.away_color: str = "#00d2ff"
         self.away_text_color: str = "#ffffff"
+        self.away_anthem: str = ""                  # goal-anthem audio URL
         self.away_score: int = 0
         self.away_shots: int = 0
         self.away_penalties: List[Dict[str, Any]] = []
@@ -191,6 +260,7 @@ class ScoreboardState:
         # Game Clock
         self.period: str = "1"
         self.period_duration: int = 900  # 15 minutes default
+        self.overtime_duration: int = 300  # 5 minutes default
         self.time_remaining: int = 900
         self.timer_running: bool = False
 
@@ -208,6 +278,12 @@ class ScoreboardState:
         self.home_timeouts_used: int = 0
         self.away_timeouts_used: int = 0
 
+        # Penalty-expiry sound: one shared clip, played by the boards when an
+        # active penalty is `penalty_sound_lead_seconds` away from running out
+        # (0 = exactly at expiry). Survives a game reset.
+        self.penalty_sound_url: str = ""
+        self.penalty_sound_lead_seconds: int = 0
+
         # Shoot-out (tie after overtime) - kept separate from the regular score
         self.shootout_active: bool = False
         self.home_shootout: List[Dict[str, Any]] = []
@@ -224,8 +300,12 @@ class ScoreboardState:
         return {
             "home_name": self.home_name,
             "home_logo": self.home_logo,
+            "home_logo_border_mode": self.home_logo_border_mode,
+            "home_logo_border_width": self.home_logo_border_width,
+            "home_logo_border_color": self.home_logo_border_color,
             "home_color": self.home_color,
             "home_text_color": self.home_text_color,
+            "home_anthem": self.home_anthem,
             "home_score": self.home_score,
             "home_shots": self.home_shots,
             "home_penalties": self.home_penalties,
@@ -234,8 +314,12 @@ class ScoreboardState:
 
             "away_name": self.away_name,
             "away_logo": self.away_logo,
+            "away_logo_border_mode": self.away_logo_border_mode,
+            "away_logo_border_width": self.away_logo_border_width,
+            "away_logo_border_color": self.away_logo_border_color,
             "away_color": self.away_color,
             "away_text_color": self.away_text_color,
+            "away_anthem": self.away_anthem,
             "away_score": self.away_score,
             "away_shots": self.away_shots,
             "away_penalties": self.away_penalties,
@@ -244,6 +328,7 @@ class ScoreboardState:
 
             "period": self.period,
             "period_duration": self.period_duration,
+            "overtime_duration": self.overtime_duration,
             "time_remaining": self.time_remaining,
             "timer_running": self.timer_running,
 
@@ -258,6 +343,9 @@ class ScoreboardState:
             "timeout_time_remaining": self.timeout_time_remaining,
             "home_timeouts_used": self.home_timeouts_used,
             "away_timeouts_used": self.away_timeouts_used,
+
+            "penalty_sound_url": self.penalty_sound_url,
+            "penalty_sound_lead_seconds": self.penalty_sound_lead_seconds,
 
             "shootout_active": self.shootout_active,
             "home_shootout": self.home_shootout,
@@ -322,12 +410,37 @@ def format_game_time(seconds: int) -> str:
     return f"{m:02d}:{s:02d}"
 
 
-def _tick_penalties(penalties: List[Dict[str, Any]]):
+def _full_clock_for_period() -> int:
+    """Full clock length for the period currently selected."""
+    return state.overtime_duration if state.period == "OT" else state.period_duration
+
+
+def _auto_advance_period():
+    """The game clock has run out: automatically line up the next third and
+    reload a full clock (still stopped). Stops before overtime - whether it
+    goes to OT, a shoot-out or is simply over is the timekeeper's call."""
+    nxt = {"1": "2", "2": "3"}.get(state.period)
+    if nxt:
+        state.period = nxt
+        state.time_remaining = state.period_duration
+
+
+def _tick_penalties(penalties: List[Dict[str, Any]], lead: int = 0) -> bool:
     """Run down the first MAX_CONCURRENT_PENALTIES active penalties and drop
-    any that have expired. Remaining penalties stay queued (stacked)."""
+    any that have expired. Remaining penalties stay queued (stacked).
+
+    Returns True when at least one penalty has just crossed its
+    "expiry sound" mark (`lead` seconds before it runs out), so the caller
+    can fire the penalty-expiry sound exactly once per penalty."""
+    fired = False
     for p in penalties[:MAX_CONCURRENT_PENALTIES]:
-        p["remaining_seconds"] = int(p.get("remaining_seconds", 0)) - 1
+        rem = int(p.get("remaining_seconds", 0)) - 1
+        p["remaining_seconds"] = rem
+        if not p.get("snd_fired") and rem <= max(0, lead):
+            p["snd_fired"] = True
+            fired = True
     penalties[:] = [p for p in penalties if int(p.get("remaining_seconds", 0)) > 0]
+    return fired
 
 
 # ==========================================
@@ -354,7 +467,7 @@ async def handle_command(cmd: dict):
                 state.timeout_active = False
     elif action == "TIMER_RESET":
         state.timer_running = False
-        state.time_remaining = state.period_duration
+        state.time_remaining = _full_clock_for_period()
     elif action in ("TIMER_SET_DURATION", "PERIOD_DURATION_SET"):
         if "duration" in cmd:
             state.period_duration = int(cmd["duration"])
@@ -362,6 +475,15 @@ async def handle_command(cmd: dict):
             state.period_duration = int(cmd["minutes"]) * 60
         state.time_remaining = state.period_duration
         state.timer_running = False
+    elif action in ("OVERTIME_DURATION_SET", "OT_DURATION_SET"):
+        if "duration" in cmd:
+            state.overtime_duration = int(cmd["duration"])
+        elif "minutes" in cmd:
+            state.overtime_duration = int(cmd["minutes"]) * 60
+        state.overtime_duration = max(30, min(3600, state.overtime_duration))
+        # Apply straight away if we're sitting in a stopped overtime.
+        if state.period == "OT" and not state.timer_running:
+            state.time_remaining = state.overtime_duration
     elif action == "TIMER_ADJUST":
         seconds = int(cmd.get("seconds", 0))
         state.time_remaining = max(0, min(state.period_duration, state.time_remaining + seconds))
@@ -395,8 +517,10 @@ async def handle_command(cmd: dict):
     elif action == "BREAK_SET_DURATION":
         duration = int(cmd.get("duration", 300))
         state.break_duration = duration
-        state.break_time_remaining = duration
-        state.break_mode = True
+        # Only reload the pending clock when a break isn't already running,
+        # so adjusting the length here never starts the break by itself.
+        if not state.break_timer_running:
+            state.break_time_remaining = duration
 
     elif action == "BREAK_END":
         state.break_mode = False
@@ -408,6 +532,10 @@ async def handle_command(cmd: dict):
         team = cmd.get("team")
         delta = int(cmd.get("delta", 0))
         scorer = clean_text(cmd.get("scorer", ""), 60)
+
+        # A registered goal stops the game clock.
+        if delta > 0:
+            state.timer_running = False
 
         if team == "home":
             if delta < 0 and state.home_goals:
@@ -428,6 +556,7 @@ async def handle_command(cmd: dict):
                     "team_name": state.home_name,
                     "scorer": scorer,
                     "team_logo": state.home_logo,
+                    "anthem": state.home_anthem,
                     "color": state.home_color,
                     "text_color": state.home_text_color,
                     "empty_net": not state.away_goalie,
@@ -451,6 +580,7 @@ async def handle_command(cmd: dict):
                     "team_name": state.away_name,
                     "scorer": scorer,
                     "team_logo": state.away_logo,
+                    "anthem": state.away_anthem,
                     "color": state.away_color,
                     "text_color": state.away_text_color,
                     "empty_net": not state.home_goalie,
@@ -477,7 +607,12 @@ async def handle_command(cmd: dict):
 
     # --- Period ---
     elif action == "PERIOD_SET":
+        prev_period = state.period
         state.period = clean_text(cmd.get("period", "1"), 4)
+        # Entering overtime loads a fresh (stopped) overtime clock.
+        if state.period == "OT" and prev_period != "OT":
+            state.time_remaining = state.overtime_duration
+            state.timer_running = False
 
     # --- Goalie on the floor (empty-net toggle) ---
     elif action == "GOALIE_SET":
@@ -519,6 +654,26 @@ async def handle_command(cmd: dict):
         state.home_timeouts_used = 0
         state.away_timeouts_used = 0
 
+    elif action == "TIMEOUT_SET_DURATION":
+        seconds = int(cmd.get("seconds", cmd.get("duration", DEFAULT_TIMEOUT_DURATION)))
+        state.timeout_duration = max(5, min(600, seconds))
+        # If a time-out is already running, leave its clock alone; the new
+        # duration takes effect the next time a team calls a time-out.
+
+    # --- Penalty-expiry sound ---
+    elif action == "PENALTY_SOUND_SET":
+        if "lead_seconds" in cmd:
+            state.penalty_sound_lead_seconds = max(0, min(30, int(cmd.get("lead_seconds", 0))))
+
+    elif action == "PENALTY_SOUND_TEST":
+        if state.penalty_sound_url:
+            await manager.broadcast({
+                "type": "penalty_sound",
+                "sound": state.penalty_sound_url,
+                "lead_seconds": state.penalty_sound_lead_seconds,
+                "test": True,
+            })
+
     # --- Shoot-out ---
     elif action == "SHOOTOUT_MODE_SET":
         state.shootout_active = bool(cmd.get("active", True))
@@ -547,14 +702,22 @@ async def handle_command(cmd: dict):
         if team == "home":
             if "name" in cmd: state.home_name = clean_text(cmd["name"])
             if "logo" in cmd: state.home_logo = clean_text(cmd["logo"], 300)
+            if "logo_border_mode" in cmd: state.home_logo_border_mode = _clean_border_mode(cmd["logo_border_mode"])
+            if "logo_border_width" in cmd: state.home_logo_border_width = _clean_border_width(cmd["logo_border_width"])
+            if "logo_border_color" in cmd: state.home_logo_border_color = clean_text(cmd["logo_border_color"], 40)
             if "color" in cmd: state.home_color = clean_text(cmd["color"], 40)
             if "text_color" in cmd: state.home_text_color = clean_text(cmd["text_color"], 40)
+            if "anthem" in cmd: state.home_anthem = clean_text(cmd["anthem"], 300)
             if "players" in cmd: state.home_players = _clean_players(cmd["players"])
         elif team == "away":
             if "name" in cmd: state.away_name = clean_text(cmd["name"])
             if "logo" in cmd: state.away_logo = clean_text(cmd["logo"], 300)
+            if "logo_border_mode" in cmd: state.away_logo_border_mode = _clean_border_mode(cmd["logo_border_mode"])
+            if "logo_border_width" in cmd: state.away_logo_border_width = _clean_border_width(cmd["logo_border_width"])
+            if "logo_border_color" in cmd: state.away_logo_border_color = clean_text(cmd["logo_border_color"], 40)
             if "color" in cmd: state.away_color = clean_text(cmd["color"], 40)
             if "text_color" in cmd: state.away_text_color = clean_text(cmd["text_color"], 40)
+            if "anthem" in cmd: state.away_anthem = clean_text(cmd["anthem"], 300)
             if "players" in cmd: state.away_players = _clean_players(cmd["players"])
         else:
             if "home_name" in cmd: state.home_name = clean_text(cmd["home_name"])
@@ -640,11 +803,19 @@ async def timer_loop():
                 state.time_remaining -= 1
                 state_changed = True
 
-                _tick_penalties(state.home_penalties)
-                _tick_penalties(state.away_penalties)
+                lead = int(state.penalty_sound_lead_seconds or 0)
+                pen_sound = _tick_penalties(state.home_penalties, lead)
+                pen_sound = _tick_penalties(state.away_penalties, lead) or pen_sound
+                if pen_sound and state.penalty_sound_url:
+                    await manager.broadcast({
+                        "type": "penalty_sound",
+                        "sound": state.penalty_sound_url,
+                        "lead_seconds": lead,
+                    })
 
                 if state.time_remaining == 0:
                     state.timer_running = False
+                    _auto_advance_period()
             else:
                 state.timer_running = False
                 state_changed = True
@@ -718,9 +889,15 @@ async def save_or_update_team(
     name: str = Form(...),
     color: str = Form("#ef4444"),
     text_color: str = Form("#ffffff"),
+    logo_border_mode: str = Form("none"),
+    logo_border_width: str = Form("4"),
+    logo_border_color: str = Form(""),
     players_json: str = Form("[]"),
+    anthem_seconds: str = Form(""),
+    remove_anthem: str = Form(""),
     logo_file: Optional[UploadFile] = File(None),
-    logo: Optional[UploadFile] = File(None)
+    logo: Optional[UploadFile] = File(None),
+    anthem_file: Optional[UploadFile] = File(None)
 ):
     teams = load_saved_teams()
     target_id = sanitise_id(id or team_id)
@@ -732,10 +909,12 @@ async def save_or_update_team(
     players = _clean_players(players)
 
     logo_url = ""
+    anthem_url = ""
     if target_id:
         existing = next((t for t in teams if t["id"] == target_id), None)
         if existing:
             logo_url = existing.get("logo_url", "")
+            anthem_url = existing.get("anthem_url", "")
     else:
         target_id = str(uuid.uuid4())[:8]
 
@@ -748,12 +927,36 @@ async def save_or_update_team(
             buffer.write(contents)
         logo_url = f"/uploads/{filename}"
 
+    # --- Goal anthem (Torhymne) ---
+    if str(remove_anthem).strip().lower() in ("1", "true", "yes", "on"):
+        _delete_anthem_file(anthem_url)
+        anthem_url = ""
+    elif anthem_file and anthem_file.filename:
+        try:
+            client_secs = float(anthem_seconds)
+        except (TypeError, ValueError):
+            client_secs = 0.0
+        if client_secs > MAX_ANTHEM_SECONDS + 0.5:
+            raise HTTPException(status_code=400,
+                                detail=f"Torhymne zu lang ({client_secs:.0f}s, max. {MAX_ANTHEM_SECONDS}s)")
+        contents, ext = await read_validated_audio(anthem_file)
+        _delete_anthem_file(anthem_url)  # drop the previous clip (extension may change)
+        filename = f"{target_id}{ext}"
+        filepath = os.path.join(ANTHEMS_UPLOAD_DIR, filename)
+        with open(filepath, "wb") as buffer:
+            buffer.write(contents)
+        anthem_url = f"/uploads/anthems/{filename}"
+
     team_entry = {
         "id": target_id,
         "name": clean_text(name),
         "color": clean_text(color, 40),
         "text_color": clean_text(text_color, 40),
         "logo_url": logo_url,
+        "anthem_url": anthem_url,
+        "logo_border_mode": _clean_border_mode(logo_border_mode),
+        "logo_border_width": _clean_border_width(logo_border_width),
+        "logo_border_color": clean_text(logo_border_color, 40),
         "players": players
     }
 
@@ -781,8 +984,56 @@ async def delete_team(team_id: str):
             try: os.remove(path)
             except Exception: pass
 
+    _delete_anthem_file(team.get("anthem_url", ""))
+
     teams = [t for t in teams if t["id"] != team_id]
     save_teams_db(teams)
+    return {"status": "ok"}
+
+@app.get("/api/penalty-sound")
+async def get_penalty_sound():
+    return {
+        "url": state.penalty_sound_url,
+        "lead_seconds": state.penalty_sound_lead_seconds,
+    }
+
+@app.post("/api/penalty-sound")
+async def upload_penalty_sound(
+    lead_seconds: str = Form(""),
+    audio_seconds: str = Form(""),
+    file: Optional[UploadFile] = File(None),
+):
+    if file and file.filename:
+        try:
+            client_secs = float(audio_seconds)
+        except (TypeError, ValueError):
+            client_secs = 0.0
+        if client_secs > 20.5:  # a penalty cue should be short
+            raise HTTPException(status_code=400,
+                                detail=f"Strafen-Sound zu lang ({client_secs:.0f}s, max. 20s)")
+        contents, ext = await read_validated_audio(file)
+        _delete_sfx_file(state.penalty_sound_url)
+        filename = f"penalty_sound{ext}"
+        with open(os.path.join(SFX_UPLOAD_DIR, filename), "wb") as buffer:
+            buffer.write(contents)
+        state.penalty_sound_url = f"/uploads/sfx/{filename}"
+
+    if str(lead_seconds).strip() != "":
+        try:
+            state.penalty_sound_lead_seconds = max(0, min(30, int(float(lead_seconds))))
+        except (TypeError, ValueError):
+            pass
+
+    save_game_state()
+    await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
+    return {"url": state.penalty_sound_url, "lead_seconds": state.penalty_sound_lead_seconds}
+
+@app.delete("/api/penalty-sound")
+async def delete_penalty_sound():
+    _delete_sfx_file(state.penalty_sound_url)
+    state.penalty_sound_url = ""
+    save_game_state()
+    await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
     return {"status": "ok"}
 
 @app.get("/api/sponsors")
