@@ -365,6 +365,12 @@ class TestHttp:
             body = client.get(page).text
             assert body.index("/static/common.js") < body.index(script)
 
+    def test_silence_clip_is_served(self, client):
+        # board.js blesses the audio elements with this during the unlock gesture.
+        r = client.get("/static/silence.wav")
+        assert r.status_code == 200
+        assert r.headers["content-type"].split(";")[0] in ("audio/wav", "audio/x-wav")
+
     @pytest.mark.parametrize("asset,ctype", [
         ("/static/common.js", "text/javascript"),
         ("/static/board.css", "text/css"),

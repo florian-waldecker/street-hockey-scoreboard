@@ -44,6 +44,12 @@
             return u.startsWith("/uploads/") ? u : "";
         }
 
+        // Silent clip used only to "bless" an <audio> element inside a user
+        // gesture (see enableBoardSound): a real source has to actually start
+        // playing once under a gesture, otherwise the browser keeps blocking
+        // gesture-less play() forever.
+        const SILENCE_URL = "/static/silence.wav";
+
         function playClip(audioEl, url) {
             const src = safeAudioUrl(url);
             if (!src) return;
@@ -52,22 +58,43 @@
                 if (audioEl.src !== abs) audioEl.src = abs;   // nur bei Wechsel neu laden
                 audioEl.pause();
                 try { audioEl.currentTime = 0; } catch (e) {}
-                audioEl.play().catch(flashSoundToast);
+                audioEl.play().catch(err => {
+                    // Only the autoplay gate deserves the "click the board" toast;
+                    // a load race (AbortError) or missing file (NotSupportedError)
+                    // must not nag the operator.
+                    if (err && err.name === "NotAllowedError") flashSoundToast();
+                });
             } catch (e) {}
         }
 
         function playGoalAnthem(url)  { playClip(goalAnthemAudio, url); }
         function playPenaltySound(url) { playClip(penaltySfxAudio, url); }
 
+        function blessAudioElement(a) {
+            // Play (muted) once inside the gesture so the browser unlocks this
+            // element. Elements that already hold a real clip are blessed as-is;
+            // empty ones borrow the silent clip and are reset afterwards.
+            const hadSrc = !!a.getAttribute("src");
+            try {
+                a.muted = true;
+                if (!hadSrc) a.src = new URL(SILENCE_URL, location.href).href;
+                const restore = () => {
+                    a.pause();
+                    try { a.currentTime = 0; } catch (e) {}
+                    if (!hadSrc) a.removeAttribute("src");
+                    a.muted = false;
+                };
+                const p = a.play();
+                if (p && p.then) p.then(restore).catch(restore);
+                else restore();
+            } catch (e) { a.muted = false; }
+        }
+
         function enableBoardSound() {
             const wasEnabled = boardSoundEnabled;
             boardSoundEnabled = true;
             if (!wasEnabled) {
-                // Einmal im User-Gesten-Kontext die (noch leeren) Elemente
-                // anstossen, damit spaeteres play() vom Browser erlaubt wird.
-                [goalAnthemAudio, penaltySfxAudio].forEach(a => {
-                    if (!a.src) { try { a.play().then(() => a.pause()).catch(() => {}); } catch (e) {} }
-                });
+                [goalAnthemAudio, penaltySfxAudio].forEach(blessAudioElement);
             }
             const t = document.getElementById("soundToast");
             if (t) t.hidden = true;
