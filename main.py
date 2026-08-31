@@ -1,17 +1,36 @@
-import os
-import re
+import asyncio
 import json
 import logging
-import asyncio
+import mimetypes
+import os
+import re
 import uuid
 from contextlib import asynccontextmanager
-from typing import Set, List, Dict, Any, Optional, Tuple
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Request
+from dataclasses import asdict, dataclass, field, fields
+from typing import Any
+
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("scoreboard")
+
+# Some Windows installs map .js to text/plain in the registry; with our
+# X-Content-Type-Options: nosniff header the browser then refuses to run
+# /static/*.js. Pin the types we serve.
+mimetypes.add_type("text/javascript", ".js")
+mimetypes.add_type("text/css", ".css")
+mimetypes.add_type("font/woff2", ".woff2")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -87,35 +106,35 @@ def _clean_border_width(value: Any) -> int:
         return 0
 
 
-def sanitise_id(value: Optional[str]) -> str:
+def sanitise_id(value: str | None) -> str:
     return _ID_SANITISE.sub("", str(value or ""))[:32]
 
 
 # ==========================================
 # PERSISTENCE HELPERS
 # ==========================================
-def load_saved_teams() -> List[Dict[str, Any]]:
+def load_saved_teams() -> list[dict[str, Any]]:
     if not os.path.exists(TEAMS_FILE):
         return []
     try:
-        with open(TEAMS_FILE, "r", encoding="utf-8") as f:
+        with open(TEAMS_FILE, encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Error loading teams: {e}")
         return []
 
-def save_teams_db(teams: List[Dict[str, Any]]):
+def save_teams_db(teams: list[dict[str, Any]]):
     try:
         with open(TEAMS_FILE, "w", encoding="utf-8") as f:
             json.dump(teams, f, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.error(f"Error saving teams: {e}")
 
-def load_sponsors() -> List[Dict[str, Any]]:
+def load_sponsors() -> list[dict[str, Any]]:
     if not os.path.exists(SPONSORS_FILE):
         return []
     try:
-        with open(SPONSORS_FILE, "r", encoding="utf-8") as f:
+        with open(SPONSORS_FILE, encoding="utf-8") as f:
             data = json.load(f)
             for s in data:
                 if "url" not in s and "image_url" in s:
@@ -125,7 +144,7 @@ def load_sponsors() -> List[Dict[str, Any]]:
         logger.error(f"Error loading sponsors: {e}")
         return []
 
-def save_sponsors_db(sponsors: List[Dict[str, Any]]):
+def save_sponsors_db(sponsors: list[dict[str, Any]]):
     try:
         for s in sponsors:
             if "url" not in s and "image_url" in s:
@@ -136,7 +155,8 @@ def save_sponsors_db(sponsors: List[Dict[str, Any]]):
         logger.error(f"Error saving sponsors: {e}")
 
 
-def save_game_state():
+def write_game_state_now():
+    """Blocking, atomic write of the live game state to disk."""
     try:
         tmp = GAME_STATE_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
@@ -146,11 +166,32 @@ def save_game_state():
         logger.error(f"Error saving game state: {e}")
 
 
+# The game state is persisted by a dedicated task, not inline in the request /
+# timer handlers: a burst of commands only ever costs one disk write a second,
+# and it runs in a worker thread so it never stalls the game clock.
+_save_dirty = False
+
+
+def request_game_state_save():
+    """Mark the game state dirty; the saver task flushes it within ~1 s."""
+    global _save_dirty
+    _save_dirty = True
+
+
+async def _game_state_saver():
+    global _save_dirty
+    while True:
+        await asyncio.sleep(1.0)          # coalesce a burst of updates
+        if _save_dirty:
+            _save_dirty = False
+            await asyncio.to_thread(write_game_state_now)
+
+
 def load_game_state():
     if not os.path.exists(GAME_STATE_FILE):
         return
     try:
-        with open(GAME_STATE_FILE, "r", encoding="utf-8") as f:
+        with open(GAME_STATE_FILE, encoding="utf-8") as f:
             state.from_dict(json.load(f))
         logger.info("Restored previous game state from disk.")
     except Exception as e:
@@ -169,7 +210,7 @@ def _svg_is_safe(data: bytes) -> bool:
     return not any(token in text for token in _SVG_BLOCKLIST)
 
 
-async def read_validated_image(upload: UploadFile) -> Tuple[bytes, str]:
+async def read_validated_image(upload: UploadFile) -> tuple[bytes, str]:
     ext = os.path.splitext(upload.filename or "")[1].lower()
     if ext == ".jpe":
         ext = ".jpg"
@@ -187,7 +228,7 @@ async def read_validated_image(upload: UploadFile) -> Tuple[bytes, str]:
     return contents, ext
 
 
-async def read_validated_audio(upload: UploadFile) -> Tuple[bytes, str]:
+async def read_validated_audio(upload: UploadFile) -> tuple[bytes, str]:
     ext = os.path.splitext(upload.filename or "")[1].lower()
     if ext not in ALLOWED_AUDIO_EXTS:
         raise HTTPException(status_code=400,
@@ -203,7 +244,8 @@ async def read_validated_audio(upload: UploadFile) -> Tuple[bytes, str]:
 def _delete_anthem_file(anthem_url: str):
     """Best-effort removal of a stored goal-anthem clip."""
     if anthem_url and anthem_url.startswith("/uploads/anthems/"):
-        path = os.path.join(ANTHEMS_UPLOAD_DIR, os.path.basename(anthem_url))
+        name = os.path.basename(anthem_url.split("?", 1)[0])   # drop cache-bust query
+        path = os.path.join(ANTHEMS_UPLOAD_DIR, name)
         if os.path.exists(path):
             try:
                 os.remove(path)
@@ -214,7 +256,8 @@ def _delete_anthem_file(anthem_url: str):
 def _delete_sfx_file(url: str):
     """Best-effort removal of a stored sound-effect clip."""
     if url and url.startswith("/uploads/sfx/"):
-        path = os.path.join(SFX_UPLOAD_DIR, os.path.basename(url))
+        name = os.path.basename(url.split("?", 1)[0])          # drop cache-bust query
+        path = os.path.join(SFX_UPLOAD_DIR, name)
         if os.path.exists(path):
             try:
                 os.remove(path)
@@ -225,141 +268,86 @@ def _delete_sfx_file(url: str):
 # ==========================================
 # SCOREBOARD STATE MODEL
 # ==========================================
+@dataclass
 class ScoreboardState:
-    def __init__(self):
-        # Home
-        self.home_name: str = "HEIM"
-        self.home_logo: str = ""
-        self.home_logo_border_mode: str = "none"   # none | solid | glow
-        self.home_logo_border_width: int = 4
-        self.home_logo_border_color: str = ""      # empty -> board falls back to team colour
-        self.home_color: str = "#ef4444"
-        self.home_text_color: str = "#ffffff"
-        self.home_anthem: str = ""                  # goal-anthem audio URL
-        self.home_score: int = 0
-        self.home_shots: int = 0
-        self.home_penalties: List[Dict[str, Any]] = []
-        self.home_players: List[str] = []
-        self.home_goals: List[Dict[str, Any]] = []
+    # -- Home --
+    home_name: str = "HEIM"
+    home_logo: str = ""
+    home_logo_border_mode: str = "none"   # none | solid | glow
+    home_logo_border_width: int = 4
+    home_logo_border_color: str = ""       # empty -> board falls back to team colour
+    home_color: str = "#ef4444"
+    home_text_color: str = "#ffffff"
+    home_anthem: str = ""                  # goal-anthem audio URL
+    home_score: int = 0
+    home_shots: int = 0
+    home_penalties: list[dict[str, Any]] = field(default_factory=list)
+    home_players: list[str] = field(default_factory=list)
+    home_goals: list[dict[str, Any]] = field(default_factory=list)
 
-        # Away
-        self.away_name: str = "GAST"
-        self.away_logo: str = ""
-        self.away_logo_border_mode: str = "none"
-        self.away_logo_border_width: int = 4
-        self.away_logo_border_color: str = ""
-        self.away_color: str = "#00d2ff"
-        self.away_text_color: str = "#ffffff"
-        self.away_anthem: str = ""                  # goal-anthem audio URL
-        self.away_score: int = 0
-        self.away_shots: int = 0
-        self.away_penalties: List[Dict[str, Any]] = []
-        self.away_players: List[str] = []
-        self.away_goals: List[Dict[str, Any]] = []
+    # -- Away --
+    away_name: str = "GAST"
+    away_logo: str = ""
+    away_logo_border_mode: str = "none"
+    away_logo_border_width: int = 4
+    away_logo_border_color: str = ""
+    away_color: str = "#00d2ff"
+    away_text_color: str = "#ffffff"
+    away_anthem: str = ""                  # goal-anthem audio URL
+    away_score: int = 0
+    away_shots: int = 0
+    away_penalties: list[dict[str, Any]] = field(default_factory=list)
+    away_players: list[str] = field(default_factory=list)
+    away_goals: list[dict[str, Any]] = field(default_factory=list)
 
-        # Game Clock
-        self.period: str = "1"
-        self.period_duration: int = 900  # 15 minutes default
-        self.overtime_duration: int = 300  # 5 minutes default
-        self.time_remaining: int = 900
-        self.timer_running: bool = False
+    # -- Game clock --
+    period: str = "1"
+    period_duration: int = 900            # 15 minutes default
+    overtime_duration: int = 300          # 5 minutes default
+    time_remaining: int = 900
+    timer_running: bool = False
 
-        # Break / Intermission Mode
-        self.break_mode: bool = False
-        self.break_duration: int = 300  # 5 minutes default
-        self.break_time_remaining: int = 300
-        self.break_timer_running: bool = False
+    # -- Break / intermission mode --
+    break_mode: bool = False
+    break_duration: int = 300             # 5 minutes default
+    break_time_remaining: int = 300
+    break_timer_running: bool = False
 
-        # Team time-outs (one 60 s time-out per team per game)
-        self.timeout_duration: int = DEFAULT_TIMEOUT_DURATION
-        self.timeout_active: bool = False
-        self.timeout_team: str = ""
-        self.timeout_time_remaining: int = 0
-        self.home_timeouts_used: int = 0
-        self.away_timeouts_used: int = 0
+    # -- Team time-outs (one 60 s time-out per team per game) --
+    timeout_duration: int = DEFAULT_TIMEOUT_DURATION
+    timeout_active: bool = False
+    timeout_team: str = ""
+    timeout_time_remaining: int = 0
+    home_timeouts_used: int = 0
+    away_timeouts_used: int = 0
 
-        # Penalty-expiry sound: one shared clip, played by the boards when an
-        # active penalty is `penalty_sound_lead_seconds` away from running out
-        # (0 = exactly at expiry). Survives a game reset.
-        self.penalty_sound_url: str = ""
-        self.penalty_sound_lead_seconds: int = 0
+    # -- Penalty-expiry sound: one shared clip, played by the boards when an
+    # active penalty is `penalty_sound_lead_seconds` away from running out
+    # (0 = exactly at expiry). Survives a game reset. --
+    penalty_sound_url: str = ""
+    penalty_sound_lead_seconds: int = 0
 
-        # Shoot-out (tie after overtime) - kept separate from the regular score
-        self.shootout_active: bool = False
-        self.home_shootout: List[Dict[str, Any]] = []
-        self.away_shootout: List[Dict[str, Any]] = []
+    # -- Shoot-out (tie after overtime) - kept separate from the regular score --
+    shootout_active: bool = False
+    home_shootout: list[dict[str, Any]] = field(default_factory=list)
+    away_shootout: list[dict[str, Any]] = field(default_factory=list)
 
-        # Goalie on the floor - off = empty net (pulled goalie / playing a skater out)
-        self.home_goalie: bool = True
-        self.away_goalie: bool = True
+    # -- Goalie on the floor - off = empty net (pulled goalie / skater out) --
+    home_goalie: bool = True
+    away_goalie: bool = True
 
-        # Display options (shared with the board)
-        self.show_shots: bool = False
+    # -- Display options (shared with the board) --
+    show_shots: bool = False
 
-    def to_dict(self) -> dict:
-        return {
-            "home_name": self.home_name,
-            "home_logo": self.home_logo,
-            "home_logo_border_mode": self.home_logo_border_mode,
-            "home_logo_border_width": self.home_logo_border_width,
-            "home_logo_border_color": self.home_logo_border_color,
-            "home_color": self.home_color,
-            "home_text_color": self.home_text_color,
-            "home_anthem": self.home_anthem,
-            "home_score": self.home_score,
-            "home_shots": self.home_shots,
-            "home_penalties": self.home_penalties,
-            "home_players": self.home_players,
-            "home_goals": self.home_goals,
+    def to_dict(self) -> dict[str, Any]:
+        """Plain-data snapshot for JSON (broadcast + disk). Deep-copied, so
+        callers can't accidentally mutate live state through it."""
+        return asdict(self)
 
-            "away_name": self.away_name,
-            "away_logo": self.away_logo,
-            "away_logo_border_mode": self.away_logo_border_mode,
-            "away_logo_border_width": self.away_logo_border_width,
-            "away_logo_border_color": self.away_logo_border_color,
-            "away_color": self.away_color,
-            "away_text_color": self.away_text_color,
-            "away_anthem": self.away_anthem,
-            "away_score": self.away_score,
-            "away_shots": self.away_shots,
-            "away_penalties": self.away_penalties,
-            "away_players": self.away_players,
-            "away_goals": self.away_goals,
-
-            "period": self.period,
-            "period_duration": self.period_duration,
-            "overtime_duration": self.overtime_duration,
-            "time_remaining": self.time_remaining,
-            "timer_running": self.timer_running,
-
-            "break_mode": self.break_mode,
-            "break_duration": self.break_duration,
-            "break_time_remaining": self.break_time_remaining,
-            "break_timer_running": self.break_timer_running,
-
-            "timeout_duration": self.timeout_duration,
-            "timeout_active": self.timeout_active,
-            "timeout_team": self.timeout_team,
-            "timeout_time_remaining": self.timeout_time_remaining,
-            "home_timeouts_used": self.home_timeouts_used,
-            "away_timeouts_used": self.away_timeouts_used,
-
-            "penalty_sound_url": self.penalty_sound_url,
-            "penalty_sound_lead_seconds": self.penalty_sound_lead_seconds,
-
-            "shootout_active": self.shootout_active,
-            "home_shootout": self.home_shootout,
-            "away_shootout": self.away_shootout,
-
-            "home_goalie": self.home_goalie,
-            "away_goalie": self.away_goalie,
-
-            "show_shots": self.show_shots,
-        }
-
-    def from_dict(self, data: Dict[str, Any]):
+    def from_dict(self, data: dict[str, Any]) -> None:
+        known = {f.name for f in fields(self)}
         for key, value in data.items():
-            if key in self.to_dict():
+            if key in known:
                 setattr(self, key, value)
         # Never resume a running clock automatically after a restart -
         # the timekeeper decides when play continues.
@@ -377,7 +365,11 @@ state = ScoreboardState()
 # ==========================================
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: Set[WebSocket] = set()
+        self.active_connections: set[WebSocket] = set()
+        # Boards announce themselves via BOARD_HELLO; value = has the browser
+        # unlocked audio playback yet. Used to warn the desk when a board still
+        # can't play the goal anthem / penalty sound.
+        self.board_conns: dict[WebSocket, bool] = {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -386,7 +378,23 @@ class ConnectionManager:
 
     def disconnect(self, websocket: WebSocket):
         self.active_connections.discard(websocket)
+        self.board_conns.pop(websocket, None)
         logger.info(f"WebSocket disconnected. Total clients: {len(self.active_connections)}")
+
+    def register_board(self, websocket: WebSocket, audio_ready: bool):
+        self.board_conns[websocket] = bool(audio_ready)
+
+    def set_board_audio(self, websocket: WebSocket, ready: bool):
+        if websocket in self.board_conns:
+            self.board_conns[websocket] = bool(ready)
+
+    def audio_status(self) -> dict:
+        total = len(self.board_conns)
+        ready = sum(1 for v in self.board_conns.values() if v)
+        return {"type": "AUDIO_STATUS", "boards": total, "boards_audio_ready": ready}
+
+    async def broadcast_audio_status(self):
+        await self.broadcast(self.audio_status())
 
     async def broadcast(self, message: dict):
         if not self.active_connections:
@@ -425,7 +433,7 @@ def _auto_advance_period():
         state.time_remaining = state.period_duration
 
 
-def _tick_penalties(penalties: List[Dict[str, Any]], lead: int = 0) -> bool:
+def _tick_penalties(penalties: list[dict[str, Any]], lead: int = 0) -> bool:
     """Run down the first MAX_CONCURRENT_PENALTIES active penalties and drop
     any that have expired. Remaining penalties stay queued (stacked).
 
@@ -446,8 +454,18 @@ def _tick_penalties(penalties: List[Dict[str, Any]], lead: int = 0) -> bool:
 # ==========================================
 # COMMAND HANDLER
 # ==========================================
-async def handle_command(cmd: dict):
+async def handle_command(cmd: dict, ws: WebSocket | None = None):
     action = cmd.get("action")
+
+    # --- Board audio-unlock reporting (banner on the desk) ---
+    if action == "BOARD_HELLO":
+        manager.register_board(ws, bool(cmd.get("audio_ready", False)))
+        await manager.broadcast_audio_status()
+        return
+    if action == "BOARD_AUDIO_READY":
+        manager.set_board_audio(ws, bool(cmd.get("ready", True)))
+        await manager.broadcast_audio_status()
+        return
 
     # --- Game Timer ---
     if action == "TIMER_START":
@@ -486,10 +504,11 @@ async def handle_command(cmd: dict):
             state.time_remaining = state.overtime_duration
     elif action == "TIMER_ADJUST":
         seconds = int(cmd.get("seconds", 0))
-        state.time_remaining = max(0, min(state.period_duration, state.time_remaining + seconds))
+        ceiling = _full_clock_for_period()   # overtime is shorter than a regular third
+        state.time_remaining = max(0, min(ceiling, state.time_remaining + seconds))
     elif action == "TIMER_SET_REMAINING":
         seconds = int(cmd.get("seconds", 0))
-        state.time_remaining = max(0, min(state.period_duration, seconds))
+        state.time_remaining = max(0, min(_full_clock_for_period(), seconds))
         state.timer_running = False
 
     # --- Break / Intermission Timer ---
@@ -774,10 +793,10 @@ async def handle_command(cmd: dict):
 
     # Broadcast state to all clients (Control & Board) and persist.
     await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
-    save_game_state()
+    request_game_state_save()
 
 
-def _clean_players(players: Any) -> List[str]:
+def _clean_players(players: Any) -> list[str]:
     if not isinstance(players, list):
         return []
     cleaned = [clean_text(p) for p in players]
@@ -843,22 +862,24 @@ async def timer_loop():
         if state_changed:
             await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
             if tick % GAME_STATE_SAVE_EVERY == 0:
-                save_game_state()
+                request_game_state_save()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     load_game_state()
-    task = asyncio.create_task(timer_loop())
+    tasks = [asyncio.create_task(timer_loop()), asyncio.create_task(_game_state_saver())]
     try:
         yield
     finally:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        save_game_state()
+        for t in tasks:
+            t.cancel()
+        for t in tasks:
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
+        write_game_state_now()   # final flush on shutdown
 
 
 app = FastAPI(title="Street Hockey Scoreboard Hub", lifespan=lifespan)
@@ -884,8 +905,8 @@ async def get_teams():
 
 @app.post("/api/teams")
 async def save_or_update_team(
-    id: Optional[str] = Form(None),
-    team_id: Optional[str] = Form(None),
+    id: str | None = Form(None),
+    team_id: str | None = Form(None),
     name: str = Form(...),
     color: str = Form("#ef4444"),
     text_color: str = Form("#ffffff"),
@@ -895,9 +916,9 @@ async def save_or_update_team(
     players_json: str = Form("[]"),
     anthem_seconds: str = Form(""),
     remove_anthem: str = Form(""),
-    logo_file: Optional[UploadFile] = File(None),
-    logo: Optional[UploadFile] = File(None),
-    anthem_file: Optional[UploadFile] = File(None)
+    logo_file: UploadFile | None = File(None),
+    logo: UploadFile | None = File(None),
+    anthem_file: UploadFile | None = File(None)
 ):
     teams = load_saved_teams()
     target_id = sanitise_id(id or team_id)
@@ -945,7 +966,8 @@ async def save_or_update_team(
         filepath = os.path.join(ANTHEMS_UPLOAD_DIR, filename)
         with open(filepath, "wb") as buffer:
             buffer.write(contents)
-        anthem_url = f"/uploads/anthems/{filename}"
+        # cache-bust so boards drop the previously cached clip on re-upload
+        anthem_url = f"/uploads/anthems/{filename}?v={uuid.uuid4().hex[:8]}"
 
     team_entry = {
         "id": target_id,
@@ -1001,7 +1023,7 @@ async def get_penalty_sound():
 async def upload_penalty_sound(
     lead_seconds: str = Form(""),
     audio_seconds: str = Form(""),
-    file: Optional[UploadFile] = File(None),
+    file: UploadFile | None = File(None),
 ):
     if file and file.filename:
         try:
@@ -1016,7 +1038,8 @@ async def upload_penalty_sound(
         filename = f"penalty_sound{ext}"
         with open(os.path.join(SFX_UPLOAD_DIR, filename), "wb") as buffer:
             buffer.write(contents)
-        state.penalty_sound_url = f"/uploads/sfx/{filename}"
+        # cache-bust so boards drop the previously cached clip on re-upload
+        state.penalty_sound_url = f"/uploads/sfx/{filename}?v={uuid.uuid4().hex[:8]}"
 
     if str(lead_seconds).strip() != "":
         try:
@@ -1024,7 +1047,7 @@ async def upload_penalty_sound(
         except (TypeError, ValueError):
             pass
 
-    save_game_state()
+    await asyncio.to_thread(write_game_state_now)
     await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
     return {"url": state.penalty_sound_url, "lead_seconds": state.penalty_sound_lead_seconds}
 
@@ -1032,7 +1055,7 @@ async def upload_penalty_sound(
 async def delete_penalty_sound():
     _delete_sfx_file(state.penalty_sound_url)
     state.penalty_sound_url = ""
-    save_game_state()
+    await asyncio.to_thread(write_game_state_now)
     await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
     return {"status": "ok"}
 
@@ -1043,8 +1066,8 @@ async def get_sponsors():
 @app.post("/api/sponsors")
 async def add_sponsor(
     name: str = Form(""),
-    file: Optional[UploadFile] = File(None),
-    image: Optional[UploadFile] = File(None)
+    file: UploadFile | None = File(None),
+    image: UploadFile | None = File(None)
 ):
     actual_file = file or image
     if not actual_file or not actual_file.filename:
@@ -1098,44 +1121,31 @@ async def delete_sponsor(sponsor_id: str):
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     await websocket.send_text(json.dumps({"type": "STATE_UPDATE", "state": state.to_dict()}))
+    await websocket.send_text(json.dumps(manager.audio_status()))
     try:
         while True:
             data = await websocket.receive_text()
             try:
                 cmd = json.loads(data)
-                await handle_command(cmd)
+                await handle_command(cmd, websocket)
             except WebSocketDisconnect:
                 raise
             except Exception as e:
                 logger.error(f"Error handling websocket command: {e}")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+        await manager.broadcast_audio_status()
 
 @app.get("/control", response_class=HTMLResponse)
 async def get_control_page():
     path = os.path.join(BASE_DIR, "templates", "control.html")
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 @app.get("/board", response_class=HTMLResponse)
 async def get_board_page():
     path = os.path.join(BASE_DIR, "templates", "board.html")
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/board2", response_class=HTMLResponse)
-async def get_board2_page():
-    # Redesigned broadcast-style scoreboard (draft). Same WebSocket/state feed
-    # as /board - run both side by side to compare.
-    path = os.path.join(BASE_DIR, "templates", "board2.html")
-    with open(path, "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/board3", response_class=HTMLResponse)
-async def get_board3_page():
-    # Like /board2 but with the top (scoreboard) and middle (scorers) panels swapped.
-    path = os.path.join(BASE_DIR, "templates", "board3.html")
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 @app.get("/", response_class=HTMLResponse)

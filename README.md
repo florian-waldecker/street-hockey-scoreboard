@@ -63,3 +63,5 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 * **Kein Login:** Jeder im selben Netzwerk kann `/control` bedienen. Das System ist für den Betrieb in einem **vertrauenswürdigen lokalen Netz** (z. B. eigener Router/Hotspot an der Bande) gedacht – nicht ins offene Internet stellen.
 * **Uploads:** Nur Bilddateien (PNG/JPG/GIF/WEBP/SVG) bis 5 MB werden angenommen; SVGs mit aktiven Inhalten (Skripten/Event-Handlern) werden abgelehnt.
 * **Laufzeitdaten:** `data/` und `uploads/` werden zur Laufzeit angelegt und sind per `.gitignore` vom Repo ausgenommen.
+
+Das vollständige Sicherheitsmodell steht in [SECURITY.md](SECURITY.md).
