@@ -59,10 +59,10 @@
                 audioEl.pause();
                 try { audioEl.currentTime = 0; } catch (e) {}
                 audioEl.play().catch(err => {
-                    // Only the autoplay gate deserves the "click the board" toast;
-                    // a load race (AbortError) or missing file (NotSupportedError)
-                    // must not nag the operator.
-                    if (err && err.name === "NotAllowedError") flashSoundToast();
+                    // Nag with the "click the board" toast while sound is still
+                    // locked, or on a genuine autoplay rejection afterwards - but
+                    // not for a post-unlock load race (AbortError / NotSupportedError).
+                    if (!boardSoundEnabled || (err && err.name === "NotAllowedError")) flashSoundToast();
                 });
             } catch (e) {}
         }
