@@ -203,7 +203,8 @@ async def read_validated_audio(upload: UploadFile) -> Tuple[bytes, str]:
 def _delete_anthem_file(anthem_url: str):
     """Best-effort removal of a stored goal-anthem clip."""
     if anthem_url and anthem_url.startswith("/uploads/anthems/"):
-        path = os.path.join(ANTHEMS_UPLOAD_DIR, os.path.basename(anthem_url))
+        name = os.path.basename(anthem_url.split("?", 1)[0])   # drop cache-bust query
+        path = os.path.join(ANTHEMS_UPLOAD_DIR, name)
         if os.path.exists(path):
             try:
                 os.remove(path)
@@ -214,7 +215,8 @@ def _delete_anthem_file(anthem_url: str):
 def _delete_sfx_file(url: str):
     """Best-effort removal of a stored sound-effect clip."""
     if url and url.startswith("/uploads/sfx/"):
-        path = os.path.join(SFX_UPLOAD_DIR, os.path.basename(url))
+        name = os.path.basename(url.split("?", 1)[0])          # drop cache-bust query
+        path = os.path.join(SFX_UPLOAD_DIR, name)
         if os.path.exists(path):
             try:
                 os.remove(path)
@@ -378,6 +380,10 @@ state = ScoreboardState()
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Set[WebSocket] = set()
+        # Boards announce themselves via BOARD_HELLO; value = has the browser
+        # unlocked audio playback yet. Used to warn the desk when a board still
+        # can't play the goal anthem / penalty sound.
+        self.board_conns: Dict[WebSocket, bool] = {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -386,7 +392,23 @@ class ConnectionManager:
 
     def disconnect(self, websocket: WebSocket):
         self.active_connections.discard(websocket)
+        self.board_conns.pop(websocket, None)
         logger.info(f"WebSocket disconnected. Total clients: {len(self.active_connections)}")
+
+    def register_board(self, websocket: WebSocket, audio_ready: bool):
+        self.board_conns[websocket] = bool(audio_ready)
+
+    def set_board_audio(self, websocket: WebSocket, ready: bool):
+        if websocket in self.board_conns:
+            self.board_conns[websocket] = bool(ready)
+
+    def audio_status(self) -> dict:
+        total = len(self.board_conns)
+        ready = sum(1 for v in self.board_conns.values() if v)
+        return {"type": "AUDIO_STATUS", "boards": total, "boards_audio_ready": ready}
+
+    async def broadcast_audio_status(self):
+        await self.broadcast(self.audio_status())
 
     async def broadcast(self, message: dict):
         if not self.active_connections:
@@ -446,8 +468,18 @@ def _tick_penalties(penalties: List[Dict[str, Any]], lead: int = 0) -> bool:
 # ==========================================
 # COMMAND HANDLER
 # ==========================================
-async def handle_command(cmd: dict):
+async def handle_command(cmd: dict, ws: Optional[WebSocket] = None):
     action = cmd.get("action")
+
+    # --- Board audio-unlock reporting (banner on the desk) ---
+    if action == "BOARD_HELLO":
+        manager.register_board(ws, bool(cmd.get("audio_ready", False)))
+        await manager.broadcast_audio_status()
+        return
+    if action == "BOARD_AUDIO_READY":
+        manager.set_board_audio(ws, bool(cmd.get("ready", True)))
+        await manager.broadcast_audio_status()
+        return
 
     # --- Game Timer ---
     if action == "TIMER_START":
@@ -945,7 +977,8 @@ async def save_or_update_team(
         filepath = os.path.join(ANTHEMS_UPLOAD_DIR, filename)
         with open(filepath, "wb") as buffer:
             buffer.write(contents)
-        anthem_url = f"/uploads/anthems/{filename}"
+        # cache-bust so boards drop the previously cached clip on re-upload
+        anthem_url = f"/uploads/anthems/{filename}?v={uuid.uuid4().hex[:8]}"
 
     team_entry = {
         "id": target_id,
@@ -1016,7 +1049,8 @@ async def upload_penalty_sound(
         filename = f"penalty_sound{ext}"
         with open(os.path.join(SFX_UPLOAD_DIR, filename), "wb") as buffer:
             buffer.write(contents)
-        state.penalty_sound_url = f"/uploads/sfx/{filename}"
+        # cache-bust so boards drop the previously cached clip on re-upload
+        state.penalty_sound_url = f"/uploads/sfx/{filename}?v={uuid.uuid4().hex[:8]}"
 
     if str(lead_seconds).strip() != "":
         try:
@@ -1098,18 +1132,20 @@ async def delete_sponsor(sponsor_id: str):
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     await websocket.send_text(json.dumps({"type": "STATE_UPDATE", "state": state.to_dict()}))
+    await websocket.send_text(json.dumps(manager.audio_status()))
     try:
         while True:
             data = await websocket.receive_text()
             try:
                 cmd = json.loads(data)
-                await handle_command(cmd)
+                await handle_command(cmd, websocket)
             except WebSocketDisconnect:
                 raise
             except Exception as e:
                 logger.error(f"Error handling websocket command: {e}")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+        await manager.broadcast_audio_status()
 
 @app.get("/control", response_class=HTMLResponse)
 async def get_control_page():

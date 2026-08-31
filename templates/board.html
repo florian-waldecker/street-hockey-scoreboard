@@ -2158,6 +2158,47 @@
         🔇 Ton ist gesperrt &ndash; einmal auf die Anzeige klicken
     </div>
 
+    <!-- Start-Overlay: ein Klick = Vollbild + Ton frei. Verschwindet danach
+         und sobald ohnehin Vollbild aktiv ist. -->
+    <div id="startOverlay"
+         style="position: fixed; inset: 0; z-index: 10000; display: flex;
+                flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+                background: #0b0f19; color: #fff; cursor: pointer;
+                font-family: system-ui, -apple-system, sans-serif; text-align: center;">
+        <div style="font-size: clamp(28px, 6vw, 64px); font-weight: 800;">🏒 Anzeige starten</div>
+        <div style="font-size: clamp(14px, 2vw, 22px); opacity: .8;">
+            Klick / Tippen &ndash; startet Vollbild und aktiviert den Ton
+        </div>
+        <div style="margin-top: 8px; padding: 14px 28px; border-radius: 10px;
+                    background: #2563eb; font-size: clamp(16px, 2.4vw, 24px); font-weight: 700;">
+            ▶ Los geht&rsquo;s
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const ov = document.getElementById("startOverlay");
+            if (!ov) return;
+            function hide() { ov.style.display = "none"; }
+            function start() {
+                try {
+                    const el = document.documentElement;
+                    if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {});
+                } catch (e) {}
+                if (typeof enableBoardSound === "function") enableBoardSound();
+                hide();
+            }
+            ov.addEventListener("click", start);
+            document.addEventListener("keydown", start, { once: true });
+            document.addEventListener("fullscreenchange", () => { if (document.fullscreenElement) hide(); });
+            // Already fullscreen (Kiosk-Modus)? Dann nicht im Weg stehen.
+            if (document.fullscreenElement ||
+                (window.innerHeight >= (screen.height - 2) && window.innerWidth >= (screen.width - 2))) {
+                hide();
+            }
+        })();
+    </script>
+
     <script>
         let ws;
         let sponsorsList = [];
@@ -2167,19 +2208,50 @@
 
         // ---- Audio-Freischaltung (goal anthem / penalty sound) ----
         let boardSoundEnabled = false;
-        let goalAnthemAudio = null;
         let soundToastTimer = null;
+
+        // WICHTIG: pro Sound genau EIN wiederverwendetes <audio>-Element.
+        // Niemals `new Audio()` je Wiedergabe - abgebrochene Instanzen spielen
+        // sonst kurz weiter und ueberlagern sich (Klang wird "blechern").
+        const goalAnthemAudio = new Audio();
+        const penaltySfxAudio = new Audio();
+        [goalAnthemAudio, penaltySfxAudio].forEach(a => { a.preload = "auto"; });
 
         function safeAudioUrl(url) {
             const u = String(url || "");
             return u.startsWith("/uploads/") ? u : "";
         }
 
+        function playClip(audioEl, url) {
+            const src = safeAudioUrl(url);
+            if (!src) return;
+            try {
+                const abs = new URL(src, location.href).href;
+                if (audioEl.src !== abs) audioEl.src = abs;   // nur bei Wechsel neu laden
+                audioEl.pause();
+                try { audioEl.currentTime = 0; } catch (e) {}
+                audioEl.play().catch(flashSoundToast);
+            } catch (e) {}
+        }
+
+        function playGoalAnthem(url)  { playClip(goalAnthemAudio, url); }
+        function playPenaltySound(url) { playClip(penaltySfxAudio, url); }
+
         function enableBoardSound() {
+            const wasEnabled = boardSoundEnabled;
             boardSoundEnabled = true;
-            try { new Audio().play().catch(() => {}); } catch (e) {}
+            if (!wasEnabled) {
+                // Einmal im User-Gesten-Kontext die (noch leeren) Elemente
+                // anstossen, damit spaeteres play() vom Browser erlaubt wird.
+                [goalAnthemAudio, penaltySfxAudio].forEach(a => {
+                    if (!a.src) { try { a.play().then(() => a.pause()).catch(() => {}); } catch (e) {} }
+                });
+            }
             const t = document.getElementById("soundToast");
             if (t) t.hidden = true;
+            if (!wasEnabled && ws && ws.readyState === WebSocket.OPEN) {
+                try { ws.send(JSON.stringify({ action: "BOARD_AUDIO_READY", ready: true })); } catch (e) {}
+            }
         }
         // Any interaction in this tab counts as the unlock gesture.
         ["pointerdown", "keydown", "touchstart"].forEach(evt =>
@@ -2192,27 +2264,6 @@
             t.hidden = false;
             if (soundToastTimer) clearTimeout(soundToastTimer);
             soundToastTimer = setTimeout(() => { t.hidden = true; }, 5000);
-        }
-
-        function playGoalAnthem(url) {
-            const src = safeAudioUrl(url);
-            if (!src) return;
-            try {
-                if (goalAnthemAudio) { goalAnthemAudio.pause(); }
-                goalAnthemAudio = new Audio(src);
-                goalAnthemAudio.play().catch(flashSoundToast);
-            } catch (e) {}
-        }
-
-        let penaltySfxAudio = null;
-        function playPenaltySound(url) {
-            const src = safeAudioUrl(url);
-            if (!src) return;
-            try {
-                if (penaltySfxAudio) { penaltySfxAudio.pause(); }
-                penaltySfxAudio = new Audio(src);
-                penaltySfxAudio.play().catch(flashSoundToast);
-            } catch (e) {}
         }
 
         function escapeHtml(s) {
@@ -2271,6 +2322,11 @@
             const wsProtocol = loc.protocol === "https:" ? "wss:" : "ws:";
             const wsUrl = `${wsProtocol}//${loc.host}/ws`;
             ws = new WebSocket(wsUrl);
+            ws.onopen = () => {
+                // Announce this page as a board + whether audio is already unlocked,
+                // so the timekeeper desk can warn when a board still can't play sound.
+                try { ws.send(JSON.stringify({ action: "BOARD_HELLO", audio_ready: boardSoundEnabled })); } catch (e) {}
+            };
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 if (msg.type === "STATE_UPDATE") renderState(msg.state);

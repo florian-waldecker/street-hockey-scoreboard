@@ -576,6 +576,15 @@
         </div>
     </header>
 
+    <!-- AUDIO-STATUS BANNER: sichtbar, solange eine verbundene Großanzeige
+         den Ton noch nicht freigeschaltet hat -->
+    <div id="audioBanner" hidden
+         style="background: #7c2d12; color: #fff; border-bottom: 2px solid #ea580c;
+                padding: 8px 14px; font-size: 0.85rem; font-weight: 600; text-align: center;">
+        🔇 <span id="audioBannerText">Auf der Großanzeige ist noch kein Ton aktiviert</span>
+        &ndash; einmal auf die Anzeige klicken oder dort Vollbild aktivieren.
+    </div>
+
     <!-- TAB NAVIGATION -->
     <nav class="tab-bar">
         <button type="button" id="tabBtn-live" class="tab-btn tab-live" onclick="switchTab('live')">▶ Spielbetrieb</button>
@@ -1285,6 +1294,8 @@
                     renderUI(msg.state);
                 } else if (msg.type === "SPONSORS_UPDATE") {
                     fetchSponsors();
+                } else if (msg.type === "AUDIO_STATUS") {
+                    renderAudioBanner(msg);
                 }
             };
 
@@ -1298,6 +1309,23 @@
         function sendCmd(action, data = {}) {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ action, ...data }));
+            }
+        }
+
+        function renderAudioBanner(s) {
+            const banner = document.getElementById("audioBanner");
+            if (!banner) return;
+            const boards = s.boards || 0;
+            const ready = s.boards_audio_ready || 0;
+            // Show only when at least one connected board still has audio locked.
+            const show = boards > 0 && ready < boards;
+            banner.hidden = !show;
+            if (show) {
+                const missing = boards - ready;
+                document.getElementById("audioBannerText").innerText =
+                    boards === 1
+                        ? "Auf der Großanzeige ist noch kein Ton aktiviert"
+                        : `${missing} von ${boards} Anzeigen haben noch keinen Ton aktiviert`;
             }
         }
 
