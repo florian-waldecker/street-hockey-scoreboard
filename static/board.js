@@ -88,16 +88,7 @@
             soundToastTimer = setTimeout(() => { t.hidden = true; }, 5000);
         }
 
-        function escapeHtml(s) {
-            return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
-                { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
-            ));
-        }
-
-        function safeUploadUrl(url) {
-            const u = String(url || "");
-            return (u.startsWith("/uploads/") || u.startsWith("data:image/")) ? u : "";
-        }
+        // escapeHtml, safeUploadUrl, formatTime live in /static/common.js
 
         function safeColor(c) {
             const v = String(c || "").trim();
@@ -157,12 +148,6 @@
                 else if (msg.type === "SPONSORS_UPDATE") loadSponsors();
             };
             ws.onclose = () => setTimeout(connectWS, 1500);
-        }
-
-        function formatTime(sec) {
-            const m = Math.floor(sec / 60);
-            const s = sec % 60;
-            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
         function renderPeriodDots(s) {

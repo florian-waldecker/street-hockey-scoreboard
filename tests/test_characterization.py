@@ -294,7 +294,13 @@ class TestHttp:
         assert css in body and js in body
         assert "<style>" not in body and "<script>" not in body  # nothing left inline
 
+    def test_common_js_loads_before_the_page_script(self, client):
+        for page, script in (("/board", "/static/board.js"), ("/control", "/static/control.js")):
+            body = client.get(page).text
+            assert body.index("/static/common.js") < body.index(script)
+
     @pytest.mark.parametrize("asset,ctype", [
+        ("/static/common.js", "text/javascript"),
         ("/static/board.css", "text/css"),
         ("/static/board.js", "text/javascript"),
         ("/static/control.css", "text/css"),

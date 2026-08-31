@@ -7,16 +7,7 @@
         let pendingPenaltyTeam = null;
 
         // ---------- helpers ----------
-        function escapeHtml(s) {
-            return String(s == null ? "" : s).replace(/[&<>"']/g, c => (
-                { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
-            ));
-        }
-
-        function safeUploadUrl(url) {
-            const u = String(url || "");
-            return (u.startsWith("/uploads/") || u.startsWith("data:image/")) ? u : "";
-        }
+        // escapeHtml, safeUploadUrl, formatTime live in /static/common.js
 
         // Roster parsing: pull the jersey number out of entries like "10 Müller" / "#10 Max"
         function parseJerseyNumber(p) {
@@ -336,12 +327,6 @@
         function setTimeoutDuration(seconds) {
             const s = Math.max(5, Math.min(600, parseInt(seconds, 10) || 60));
             sendCmd('TIMEOUT_SET_DURATION', { seconds: s });
-        }
-
-        function formatTime(sec) {
-            const m = Math.floor(sec / 60);
-            const s = sec % 60;
-            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
         // Team colours: paint the strip above the tile + the score in the team's colour
