@@ -1,13 +1,23 @@
-import os
-import re
+import asyncio
 import json
 import logging
-import asyncio
+import os
+import re
 import uuid
-from dataclasses import dataclass, field, fields, asdict
 from contextlib import asynccontextmanager
-from typing import Set, List, Dict, Any, Optional, Tuple
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Request
+from dataclasses import asdict, dataclass, field, fields
+from typing import Any
+
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -88,35 +98,35 @@ def _clean_border_width(value: Any) -> int:
         return 0
 
 
-def sanitise_id(value: Optional[str]) -> str:
+def sanitise_id(value: str | None) -> str:
     return _ID_SANITISE.sub("", str(value or ""))[:32]
 
 
 # ==========================================
 # PERSISTENCE HELPERS
 # ==========================================
-def load_saved_teams() -> List[Dict[str, Any]]:
+def load_saved_teams() -> list[dict[str, Any]]:
     if not os.path.exists(TEAMS_FILE):
         return []
     try:
-        with open(TEAMS_FILE, "r", encoding="utf-8") as f:
+        with open(TEAMS_FILE, encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Error loading teams: {e}")
         return []
 
-def save_teams_db(teams: List[Dict[str, Any]]):
+def save_teams_db(teams: list[dict[str, Any]]):
     try:
         with open(TEAMS_FILE, "w", encoding="utf-8") as f:
             json.dump(teams, f, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.error(f"Error saving teams: {e}")
 
-def load_sponsors() -> List[Dict[str, Any]]:
+def load_sponsors() -> list[dict[str, Any]]:
     if not os.path.exists(SPONSORS_FILE):
         return []
     try:
-        with open(SPONSORS_FILE, "r", encoding="utf-8") as f:
+        with open(SPONSORS_FILE, encoding="utf-8") as f:
             data = json.load(f)
             for s in data:
                 if "url" not in s and "image_url" in s:
@@ -126,7 +136,7 @@ def load_sponsors() -> List[Dict[str, Any]]:
         logger.error(f"Error loading sponsors: {e}")
         return []
 
-def save_sponsors_db(sponsors: List[Dict[str, Any]]):
+def save_sponsors_db(sponsors: list[dict[str, Any]]):
     try:
         for s in sponsors:
             if "url" not in s and "image_url" in s:
@@ -151,7 +161,7 @@ def load_game_state():
     if not os.path.exists(GAME_STATE_FILE):
         return
     try:
-        with open(GAME_STATE_FILE, "r", encoding="utf-8") as f:
+        with open(GAME_STATE_FILE, encoding="utf-8") as f:
             state.from_dict(json.load(f))
         logger.info("Restored previous game state from disk.")
     except Exception as e:
@@ -170,7 +180,7 @@ def _svg_is_safe(data: bytes) -> bool:
     return not any(token in text for token in _SVG_BLOCKLIST)
 
 
-async def read_validated_image(upload: UploadFile) -> Tuple[bytes, str]:
+async def read_validated_image(upload: UploadFile) -> tuple[bytes, str]:
     ext = os.path.splitext(upload.filename or "")[1].lower()
     if ext == ".jpe":
         ext = ".jpg"
@@ -188,7 +198,7 @@ async def read_validated_image(upload: UploadFile) -> Tuple[bytes, str]:
     return contents, ext
 
 
-async def read_validated_audio(upload: UploadFile) -> Tuple[bytes, str]:
+async def read_validated_audio(upload: UploadFile) -> tuple[bytes, str]:
     ext = os.path.splitext(upload.filename or "")[1].lower()
     if ext not in ALLOWED_AUDIO_EXTS:
         raise HTTPException(status_code=400,
@@ -241,9 +251,9 @@ class ScoreboardState:
     home_anthem: str = ""                  # goal-anthem audio URL
     home_score: int = 0
     home_shots: int = 0
-    home_penalties: List[Dict[str, Any]] = field(default_factory=list)
-    home_players: List[str] = field(default_factory=list)
-    home_goals: List[Dict[str, Any]] = field(default_factory=list)
+    home_penalties: list[dict[str, Any]] = field(default_factory=list)
+    home_players: list[str] = field(default_factory=list)
+    home_goals: list[dict[str, Any]] = field(default_factory=list)
 
     # -- Away --
     away_name: str = "GAST"
@@ -256,9 +266,9 @@ class ScoreboardState:
     away_anthem: str = ""                  # goal-anthem audio URL
     away_score: int = 0
     away_shots: int = 0
-    away_penalties: List[Dict[str, Any]] = field(default_factory=list)
-    away_players: List[str] = field(default_factory=list)
-    away_goals: List[Dict[str, Any]] = field(default_factory=list)
+    away_penalties: list[dict[str, Any]] = field(default_factory=list)
+    away_players: list[str] = field(default_factory=list)
+    away_goals: list[dict[str, Any]] = field(default_factory=list)
 
     # -- Game clock --
     period: str = "1"
@@ -289,8 +299,8 @@ class ScoreboardState:
 
     # -- Shoot-out (tie after overtime) - kept separate from the regular score --
     shootout_active: bool = False
-    home_shootout: List[Dict[str, Any]] = field(default_factory=list)
-    away_shootout: List[Dict[str, Any]] = field(default_factory=list)
+    home_shootout: list[dict[str, Any]] = field(default_factory=list)
+    away_shootout: list[dict[str, Any]] = field(default_factory=list)
 
     # -- Goalie on the floor - off = empty net (pulled goalie / skater out) --
     home_goalie: bool = True
@@ -299,12 +309,12 @@ class ScoreboardState:
     # -- Display options (shared with the board) --
     show_shots: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Plain-data snapshot for JSON (broadcast + disk). Deep-copied, so
         callers can't accidentally mutate live state through it."""
         return asdict(self)
 
-    def from_dict(self, data: Dict[str, Any]) -> None:
+    def from_dict(self, data: dict[str, Any]) -> None:
         known = {f.name for f in fields(self)}
         for key, value in data.items():
             if key in known:
@@ -325,11 +335,11 @@ state = ScoreboardState()
 # ==========================================
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: Set[WebSocket] = set()
+        self.active_connections: set[WebSocket] = set()
         # Boards announce themselves via BOARD_HELLO; value = has the browser
         # unlocked audio playback yet. Used to warn the desk when a board still
         # can't play the goal anthem / penalty sound.
-        self.board_conns: Dict[WebSocket, bool] = {}
+        self.board_conns: dict[WebSocket, bool] = {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -393,7 +403,7 @@ def _auto_advance_period():
         state.time_remaining = state.period_duration
 
 
-def _tick_penalties(penalties: List[Dict[str, Any]], lead: int = 0) -> bool:
+def _tick_penalties(penalties: list[dict[str, Any]], lead: int = 0) -> bool:
     """Run down the first MAX_CONCURRENT_PENALTIES active penalties and drop
     any that have expired. Remaining penalties stay queued (stacked).
 
@@ -414,7 +424,7 @@ def _tick_penalties(penalties: List[Dict[str, Any]], lead: int = 0) -> bool:
 # ==========================================
 # COMMAND HANDLER
 # ==========================================
-async def handle_command(cmd: dict, ws: Optional[WebSocket] = None):
+async def handle_command(cmd: dict, ws: WebSocket | None = None):
     action = cmd.get("action")
 
     # --- Board audio-unlock reporting (banner on the desk) ---
@@ -755,7 +765,7 @@ async def handle_command(cmd: dict, ws: Optional[WebSocket] = None):
     save_game_state()
 
 
-def _clean_players(players: Any) -> List[str]:
+def _clean_players(players: Any) -> list[str]:
     if not isinstance(players, list):
         return []
     cleaned = [clean_text(p) for p in players]
@@ -862,8 +872,8 @@ async def get_teams():
 
 @app.post("/api/teams")
 async def save_or_update_team(
-    id: Optional[str] = Form(None),
-    team_id: Optional[str] = Form(None),
+    id: str | None = Form(None),
+    team_id: str | None = Form(None),
     name: str = Form(...),
     color: str = Form("#ef4444"),
     text_color: str = Form("#ffffff"),
@@ -873,9 +883,9 @@ async def save_or_update_team(
     players_json: str = Form("[]"),
     anthem_seconds: str = Form(""),
     remove_anthem: str = Form(""),
-    logo_file: Optional[UploadFile] = File(None),
-    logo: Optional[UploadFile] = File(None),
-    anthem_file: Optional[UploadFile] = File(None)
+    logo_file: UploadFile | None = File(None),
+    logo: UploadFile | None = File(None),
+    anthem_file: UploadFile | None = File(None)
 ):
     teams = load_saved_teams()
     target_id = sanitise_id(id or team_id)
@@ -980,7 +990,7 @@ async def get_penalty_sound():
 async def upload_penalty_sound(
     lead_seconds: str = Form(""),
     audio_seconds: str = Form(""),
-    file: Optional[UploadFile] = File(None),
+    file: UploadFile | None = File(None),
 ):
     if file and file.filename:
         try:
@@ -1023,8 +1033,8 @@ async def get_sponsors():
 @app.post("/api/sponsors")
 async def add_sponsor(
     name: str = Form(""),
-    file: Optional[UploadFile] = File(None),
-    image: Optional[UploadFile] = File(None)
+    file: UploadFile | None = File(None),
+    image: UploadFile | None = File(None)
 ):
     actual_file = file or image
     if not actual_file or not actual_file.filename:
@@ -1096,13 +1106,13 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.get("/control", response_class=HTMLResponse)
 async def get_control_page():
     path = os.path.join(BASE_DIR, "templates", "control.html")
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 @app.get("/board", response_class=HTMLResponse)
 async def get_board_page():
     path = os.path.join(BASE_DIR, "templates", "board.html")
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 @app.get("/", response_class=HTMLResponse)

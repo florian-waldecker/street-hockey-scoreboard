@@ -3,7 +3,6 @@
 Every test gets a fresh ScoreboardState and redirected data/upload paths so a
 run never touches the real data/ or uploads/ directories.
 """
-import importlib
 from unittest.mock import AsyncMock
 
 import pytest
