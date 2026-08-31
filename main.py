@@ -155,7 +155,8 @@ def save_sponsors_db(sponsors: list[dict[str, Any]]):
         logger.error(f"Error saving sponsors: {e}")
 
 
-def save_game_state():
+def write_game_state_now():
+    """Blocking, atomic write of the live game state to disk."""
     try:
         tmp = GAME_STATE_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
@@ -163,6 +164,27 @@ def save_game_state():
         os.replace(tmp, GAME_STATE_FILE)
     except Exception as e:
         logger.error(f"Error saving game state: {e}")
+
+
+# The game state is persisted by a dedicated task, not inline in the request /
+# timer handlers: a burst of commands only ever costs one disk write a second,
+# and it runs in a worker thread so it never stalls the game clock.
+_save_dirty = False
+
+
+def request_game_state_save():
+    """Mark the game state dirty; the saver task flushes it within ~1 s."""
+    global _save_dirty
+    _save_dirty = True
+
+
+async def _game_state_saver():
+    global _save_dirty
+    while True:
+        await asyncio.sleep(1.0)          # coalesce a burst of updates
+        if _save_dirty:
+            _save_dirty = False
+            await asyncio.to_thread(write_game_state_now)
 
 
 def load_game_state():
@@ -770,7 +792,7 @@ async def handle_command(cmd: dict, ws: WebSocket | None = None):
 
     # Broadcast state to all clients (Control & Board) and persist.
     await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
-    save_game_state()
+    request_game_state_save()
 
 
 def _clean_players(players: Any) -> list[str]:
@@ -839,22 +861,24 @@ async def timer_loop():
         if state_changed:
             await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
             if tick % GAME_STATE_SAVE_EVERY == 0:
-                save_game_state()
+                request_game_state_save()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     load_game_state()
-    task = asyncio.create_task(timer_loop())
+    tasks = [asyncio.create_task(timer_loop()), asyncio.create_task(_game_state_saver())]
     try:
         yield
     finally:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        save_game_state()
+        for t in tasks:
+            t.cancel()
+        for t in tasks:
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
+        write_game_state_now()   # final flush on shutdown
 
 
 app = FastAPI(title="Street Hockey Scoreboard Hub", lifespan=lifespan)
@@ -1022,7 +1046,7 @@ async def upload_penalty_sound(
         except (TypeError, ValueError):
             pass
 
-    save_game_state()
+    await asyncio.to_thread(write_game_state_now)
     await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
     return {"url": state.penalty_sound_url, "lead_seconds": state.penalty_sound_lead_seconds}
 
@@ -1030,7 +1054,7 @@ async def upload_penalty_sound(
 async def delete_penalty_sound():
     _delete_sfx_file(state.penalty_sound_url)
     state.penalty_sound_url = ""
-    save_game_state()
+    await asyncio.to_thread(write_game_state_now)
     await manager.broadcast({"type": "STATE_UPDATE", "state": state.to_dict()})
     return {"status": "ok"}
 

@@ -269,6 +269,48 @@ class TestGameReset:
 
 
 # ---------------------------------------------------------------------------
+# Persistence
+# ---------------------------------------------------------------------------
+class TestPersistence:
+    def test_write_game_state_now_produces_loadable_json(self, app_module):
+        import json
+        app = app_module
+        cmd(app, "SCORE_ADJUST", team="home", delta=1, scorer="7 Meier")
+        app.write_game_state_now()
+        on_disk = json.loads(open(app.GAME_STATE_FILE, encoding="utf-8").read())
+        assert on_disk["home_score"] == 1
+
+    def test_command_marks_state_dirty_not_writes_inline(self, app_module, monkeypatch):
+        app = app_module
+        monkeypatch.setattr(app, "_save_dirty", False)
+        cmd(app, "SCORE_ADJUST", team="away", delta=1)
+        assert app._save_dirty is True                # saver task will flush it
+        assert not __import__("os").path.exists(app.GAME_STATE_FILE)
+
+    def test_debounced_saver_flushes_within_a_couple_seconds(self, app_module):
+        import json
+        app = app_module
+
+        async def scenario():
+            saver = asyncio.create_task(app._game_state_saver())
+            try:
+                await app.handle_command({"action": "SCORE_ADJUST", "team": "home", "delta": 1})
+                for _ in range(30):
+                    await asyncio.sleep(0.1)
+                    if __import__("os").path.exists(app.GAME_STATE_FILE):
+                        break
+            finally:
+                saver.cancel()
+                try:
+                    await saver
+                except asyncio.CancelledError:
+                    pass
+
+        run(scenario())
+        assert json.loads(open(app.GAME_STATE_FILE, encoding="utf-8").read())["home_score"] == 1
+
+
+# ---------------------------------------------------------------------------
 # HTTP surface
 # ---------------------------------------------------------------------------
 class TestHttp:
