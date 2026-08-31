@@ -4,6 +4,7 @@ import json
 import logging
 import asyncio
 import uuid
+from dataclasses import dataclass, field, fields, asdict
 from contextlib import asynccontextmanager
 from typing import Set, List, Dict, Any, Optional, Tuple
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Request
@@ -227,141 +228,86 @@ def _delete_sfx_file(url: str):
 # ==========================================
 # SCOREBOARD STATE MODEL
 # ==========================================
+@dataclass
 class ScoreboardState:
-    def __init__(self):
-        # Home
-        self.home_name: str = "HEIM"
-        self.home_logo: str = ""
-        self.home_logo_border_mode: str = "none"   # none | solid | glow
-        self.home_logo_border_width: int = 4
-        self.home_logo_border_color: str = ""      # empty -> board falls back to team colour
-        self.home_color: str = "#ef4444"
-        self.home_text_color: str = "#ffffff"
-        self.home_anthem: str = ""                  # goal-anthem audio URL
-        self.home_score: int = 0
-        self.home_shots: int = 0
-        self.home_penalties: List[Dict[str, Any]] = []
-        self.home_players: List[str] = []
-        self.home_goals: List[Dict[str, Any]] = []
+    # -- Home --
+    home_name: str = "HEIM"
+    home_logo: str = ""
+    home_logo_border_mode: str = "none"   # none | solid | glow
+    home_logo_border_width: int = 4
+    home_logo_border_color: str = ""       # empty -> board falls back to team colour
+    home_color: str = "#ef4444"
+    home_text_color: str = "#ffffff"
+    home_anthem: str = ""                  # goal-anthem audio URL
+    home_score: int = 0
+    home_shots: int = 0
+    home_penalties: List[Dict[str, Any]] = field(default_factory=list)
+    home_players: List[str] = field(default_factory=list)
+    home_goals: List[Dict[str, Any]] = field(default_factory=list)
 
-        # Away
-        self.away_name: str = "GAST"
-        self.away_logo: str = ""
-        self.away_logo_border_mode: str = "none"
-        self.away_logo_border_width: int = 4
-        self.away_logo_border_color: str = ""
-        self.away_color: str = "#00d2ff"
-        self.away_text_color: str = "#ffffff"
-        self.away_anthem: str = ""                  # goal-anthem audio URL
-        self.away_score: int = 0
-        self.away_shots: int = 0
-        self.away_penalties: List[Dict[str, Any]] = []
-        self.away_players: List[str] = []
-        self.away_goals: List[Dict[str, Any]] = []
+    # -- Away --
+    away_name: str = "GAST"
+    away_logo: str = ""
+    away_logo_border_mode: str = "none"
+    away_logo_border_width: int = 4
+    away_logo_border_color: str = ""
+    away_color: str = "#00d2ff"
+    away_text_color: str = "#ffffff"
+    away_anthem: str = ""                  # goal-anthem audio URL
+    away_score: int = 0
+    away_shots: int = 0
+    away_penalties: List[Dict[str, Any]] = field(default_factory=list)
+    away_players: List[str] = field(default_factory=list)
+    away_goals: List[Dict[str, Any]] = field(default_factory=list)
 
-        # Game Clock
-        self.period: str = "1"
-        self.period_duration: int = 900  # 15 minutes default
-        self.overtime_duration: int = 300  # 5 minutes default
-        self.time_remaining: int = 900
-        self.timer_running: bool = False
+    # -- Game clock --
+    period: str = "1"
+    period_duration: int = 900            # 15 minutes default
+    overtime_duration: int = 300          # 5 minutes default
+    time_remaining: int = 900
+    timer_running: bool = False
 
-        # Break / Intermission Mode
-        self.break_mode: bool = False
-        self.break_duration: int = 300  # 5 minutes default
-        self.break_time_remaining: int = 300
-        self.break_timer_running: bool = False
+    # -- Break / intermission mode --
+    break_mode: bool = False
+    break_duration: int = 300             # 5 minutes default
+    break_time_remaining: int = 300
+    break_timer_running: bool = False
 
-        # Team time-outs (one 60 s time-out per team per game)
-        self.timeout_duration: int = DEFAULT_TIMEOUT_DURATION
-        self.timeout_active: bool = False
-        self.timeout_team: str = ""
-        self.timeout_time_remaining: int = 0
-        self.home_timeouts_used: int = 0
-        self.away_timeouts_used: int = 0
+    # -- Team time-outs (one 60 s time-out per team per game) --
+    timeout_duration: int = DEFAULT_TIMEOUT_DURATION
+    timeout_active: bool = False
+    timeout_team: str = ""
+    timeout_time_remaining: int = 0
+    home_timeouts_used: int = 0
+    away_timeouts_used: int = 0
 
-        # Penalty-expiry sound: one shared clip, played by the boards when an
-        # active penalty is `penalty_sound_lead_seconds` away from running out
-        # (0 = exactly at expiry). Survives a game reset.
-        self.penalty_sound_url: str = ""
-        self.penalty_sound_lead_seconds: int = 0
+    # -- Penalty-expiry sound: one shared clip, played by the boards when an
+    # active penalty is `penalty_sound_lead_seconds` away from running out
+    # (0 = exactly at expiry). Survives a game reset. --
+    penalty_sound_url: str = ""
+    penalty_sound_lead_seconds: int = 0
 
-        # Shoot-out (tie after overtime) - kept separate from the regular score
-        self.shootout_active: bool = False
-        self.home_shootout: List[Dict[str, Any]] = []
-        self.away_shootout: List[Dict[str, Any]] = []
+    # -- Shoot-out (tie after overtime) - kept separate from the regular score --
+    shootout_active: bool = False
+    home_shootout: List[Dict[str, Any]] = field(default_factory=list)
+    away_shootout: List[Dict[str, Any]] = field(default_factory=list)
 
-        # Goalie on the floor - off = empty net (pulled goalie / playing a skater out)
-        self.home_goalie: bool = True
-        self.away_goalie: bool = True
+    # -- Goalie on the floor - off = empty net (pulled goalie / skater out) --
+    home_goalie: bool = True
+    away_goalie: bool = True
 
-        # Display options (shared with the board)
-        self.show_shots: bool = False
+    # -- Display options (shared with the board) --
+    show_shots: bool = False
 
-    def to_dict(self) -> dict:
-        return {
-            "home_name": self.home_name,
-            "home_logo": self.home_logo,
-            "home_logo_border_mode": self.home_logo_border_mode,
-            "home_logo_border_width": self.home_logo_border_width,
-            "home_logo_border_color": self.home_logo_border_color,
-            "home_color": self.home_color,
-            "home_text_color": self.home_text_color,
-            "home_anthem": self.home_anthem,
-            "home_score": self.home_score,
-            "home_shots": self.home_shots,
-            "home_penalties": self.home_penalties,
-            "home_players": self.home_players,
-            "home_goals": self.home_goals,
+    def to_dict(self) -> Dict[str, Any]:
+        """Plain-data snapshot for JSON (broadcast + disk). Deep-copied, so
+        callers can't accidentally mutate live state through it."""
+        return asdict(self)
 
-            "away_name": self.away_name,
-            "away_logo": self.away_logo,
-            "away_logo_border_mode": self.away_logo_border_mode,
-            "away_logo_border_width": self.away_logo_border_width,
-            "away_logo_border_color": self.away_logo_border_color,
-            "away_color": self.away_color,
-            "away_text_color": self.away_text_color,
-            "away_anthem": self.away_anthem,
-            "away_score": self.away_score,
-            "away_shots": self.away_shots,
-            "away_penalties": self.away_penalties,
-            "away_players": self.away_players,
-            "away_goals": self.away_goals,
-
-            "period": self.period,
-            "period_duration": self.period_duration,
-            "overtime_duration": self.overtime_duration,
-            "time_remaining": self.time_remaining,
-            "timer_running": self.timer_running,
-
-            "break_mode": self.break_mode,
-            "break_duration": self.break_duration,
-            "break_time_remaining": self.break_time_remaining,
-            "break_timer_running": self.break_timer_running,
-
-            "timeout_duration": self.timeout_duration,
-            "timeout_active": self.timeout_active,
-            "timeout_team": self.timeout_team,
-            "timeout_time_remaining": self.timeout_time_remaining,
-            "home_timeouts_used": self.home_timeouts_used,
-            "away_timeouts_used": self.away_timeouts_used,
-
-            "penalty_sound_url": self.penalty_sound_url,
-            "penalty_sound_lead_seconds": self.penalty_sound_lead_seconds,
-
-            "shootout_active": self.shootout_active,
-            "home_shootout": self.home_shootout,
-            "away_shootout": self.away_shootout,
-
-            "home_goalie": self.home_goalie,
-            "away_goalie": self.away_goalie,
-
-            "show_shots": self.show_shots,
-        }
-
-    def from_dict(self, data: Dict[str, Any]):
+    def from_dict(self, data: Dict[str, Any]) -> None:
+        known = {f.name for f in fields(self)}
         for key, value in data.items():
-            if key in self.to_dict():
+            if key in known:
                 setattr(self, key, value)
         # Never resume a running clock automatically after a restart -
         # the timekeeper decides when play continues.
